@@ -1,0 +1,27 @@
+Hydra Launcher v1.0.0
+=====================
+
+Launcher original para Minecraft Java Edition
+Desarrollado por: Dylan David Gomez (scainetprr) - Hydra Studio
+
+CARACTERÍSTICAS PRINCIPALES:
+• Versiones Vanilla, Fabric y Forge (1-click)
+• Autenticación Microsoft y Offline (UUID determinístico v3)
+• Detección automática de Java (Adoptium, Oracle, PATH)
+• RAM dinámica según tu hardware (hasta 8GB+)
+• Compartido 100% con .minecraft original (mundos, mods, resourcepacks)
+• Servidores rápidos: Eventos, Survival, OneBlock, Lobby
+• Consola con auto-scroll y pausa manual
+• Interfaz dark premium con glassmorphism
+
+REQUISITOS:
+• Windows 7/8/10/11 (64-bit)
+• Java 17+ (se detecta automáticamente)
+• 4 GB RAM mínimo (8 GB recomendado)
+• Minecraft Java Edition (cuenta Microsoft para servidores premium)
+
+SOPORTE:
+Discord: https://discord.gg/qyyREajJgC
+Usuario: scainetprr (1307246359895740448)
+
+¡Gracias por elegir Hydra Launcher!

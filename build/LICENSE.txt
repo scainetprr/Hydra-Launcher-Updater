@@ -1,0 +1,49 @@
+Hydra Launcher - Licencia de Usuario Final (EULA)
+=================================================
+
+Versión: 1.0.0
+Fecha: 2026
+Desarrollador: Dylan David Gomez (scainetprr) - Hydra Studio
+
+1. LICENCIA DE USO
+------------------
+Hydra Launcher ("el Software") se proporciona bajo licencia gratuita para uso personal.
+Queda prohibida su redistribución, modificación, ingeniería inversa o venta sin autorización escrita.
+
+2. DESCARGO DE RESPONSABILIDAD
+------------------------------
+EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍAS DE NINGÚN TIPO, EXPRESAS O IMPLÍCITAS,
+INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIABILIDAD, IDONEIDAD PARA UN PROPÓSITO
+PARTICULAR Y NO INFRACCIÓN. EN NINGÚN CASO LOS AUTORES SERÁN RESPONSABLES POR RECLAMOS,
+DAÑOS U OTRAS RESPONSABILIDADES.
+
+3. SERVICIOS DE TERCEROS
+------------------------
+El Software interactúa con:
+- Servidores de autenticación de Microsoft (Xbox Live / Mojang)
+- Servidores de metadatos de Fabric (meta.fabricmc.net)
+- Servidores de manifestos de Mojang (piston-meta.mojang.com)
+
+Al usar el Software, aceptas las condiciones de uso de estos servicios.
+
+4. DATOS Y PRIVACIDAD
+---------------------
+El Software almacena localmente:
+- Configuración del launcher (RAM, Java, servidores)
+- Cuentas (tokens de acceso Microsoft, UUIDs offline determinísticos)
+- Versiones de Minecraft y mods descargados
+
+No se envían datos personales a servidores propios.
+
+5. MODIFICACIONES
+-----------------
+Hydra Studio se reserva el derecho de modificar esta licencia. El uso continuado
+implica aceptación de los cambios.
+
+6. CONTACTO
+-----------
+Soporte: Discord https://discord.gg/qyyREajJgC
+Usuario: scainetprr (1307246359895740448)
+
+---
+Al instalar Hydra Launcher, aceptas los términos de esta licencia.

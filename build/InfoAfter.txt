@@ -1,0 +1,21 @@
+¡Instalación completada!
+
+Hydra Launcher se ha instalado correctamente.
+
+PRÓXIMOS PASOS:
+1. Ejecuta Hydra Launcher desde el Escritorio o Menú Inicio
+2. En la pestaña "Cuentas", haz clic en "Microsoft →" para iniciar sesión
+3. Ve a "Versiones", selecciona una versión (ej. 26.2) y elige Fabric/Forge/Vanilla
+4. Dale a JUGAR - Hydra descargará lo necesario automáticamente
+
+NOTAS IMPORTANTES:
+• Hydra usa tu carpeta %APPDATA%\.minecraft nativa
+• Tus mundos, mods y resourcepacks del launcher oficial están disponibles
+• Para servidores premium: usa cuenta Microsoft
+• Para servidores no-premium: usa cuenta Offline + online-mode=false en el servidor
+
+SOPORTE:
+Discord: https://discord.gg/qyyREajJgC
+Usuario: scainetprr
+
+¡Disfruta de Hydra Launcher!
