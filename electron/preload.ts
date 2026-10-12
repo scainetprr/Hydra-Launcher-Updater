@@ -38,6 +38,19 @@ contextBridge.exposeInMainWorld('api', {
   getModpackMods: (id: string) => ipcRenderer.invoke('get-modpack-mods', id),
   applyModpack: (id: string) => ipcRenderer.invoke('apply-modpack', id),
   getSystemRam: () => ipcRenderer.invoke('get-system-ram'),
+  // stats / crashes
+  getStats: () => ipcRenderer.invoke('get-stats'),
+  getPendingCrashes: () => ipcRenderer.invoke('get-pending-crashes'),
+  dismissCrashes: () => ipcRenderer.invoke('dismiss-crashes'),
+  readCrash: (file: string) => ipcRenderer.invoke('read-crash', file),
+  shellOpenPath: (p: string) => ipcRenderer.invoke('shell-open-path', p),
+  onSessionStart: (cb: (info:any)=>void) => ipcRenderer.on('session-start', (_e, v)=>cb(v)),
+  onSessionEnd: (cb: (ok:boolean)=>void) => ipcRenderer.on('session-end', (_e, v)=>cb(v)),  // news / comunidad (repo publico, curado por el owner)
+  getNews: () => ipcRenderer.invoke('get-news'),
+  getCommunityServers: () => ipcRenderer.invoke('get-community-servers'),
+  // skins
+  getSkin: (uuidOrName: string) => ipcRenderer.invoke('get-skin', uuidOrName),
+  uploadSkin: (opts: any) => ipcRenderer.invoke('upload-skin', opts),
   // fs
   getAccounts: () => ipcRenderer.invoke('get-accounts'),
   saveAccounts: (a:any) => ipcRenderer.invoke('save-accounts', a),

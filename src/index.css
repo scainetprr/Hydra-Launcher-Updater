@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --acc-1: #7c3aed;
+  --acc-2: #06b6d4;
+  --acc-3: #ec4899;
+}
+[data-theme="temporada2"] { --acc-1: #059669; --acc-2: #10b981; --acc-3: #f59e0b; }
+[data-theme="midnight"] { --acc-1: #2563eb; --acc-2: #6366f1; --acc-3: #38bdf8; }
+[data-theme="mono"] { --acc-1: #52525b; --acc-2: #a1a1aa; --acc-3: #e4e4e7; }
+[data-theme="inferno"] { --acc-1: #dc2626; --acc-2: #ea580c; --acc-3: #f59e0b; }
+
 * { scrollbar-width: thin; scrollbar-color: #2a2a3a transparent; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 999px; }
@@ -9,6 +19,8 @@
 
 .glass { @apply bg-white/[0.06] backdrop-blur-xl border border-white/[0.08]; }
 .glass-strong { @apply bg-[#1c1c26]/80 backdrop-blur-2xl border border-white/10; }
-.neon-gradient { background: linear-gradient(135deg,#7c3aed 0%,#06b6d4 50%,#ec4899 100%); }
-.neon-border { border-image: linear-gradient(135deg,#7c3aed,#06b6d4) 1; }
-.text-gradient { background: linear-gradient(135deg,#a78bfa,#22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.neon-gradient { background: linear-gradient(135deg, var(--acc-1) 0%, var(--acc-2) 50%, var(--acc-3) 100%); }
+.neon-border { border-image: linear-gradient(135deg, var(--acc-1), var(--acc-2)) 1; }
+.text-gradient { background: linear-gradient(135deg, var(--acc-1), var(--acc-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.bg-blob-1 { background: radial-gradient(circle, var(--acc-1), transparent 70%); }
+.bg-blob-2 { background: radial-gradient(circle, var(--acc-2), transparent 70%); }

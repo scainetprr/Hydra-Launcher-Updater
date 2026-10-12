@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
@@ -7,6 +7,7 @@ import axios from 'axios'
 import { execSync } from 'child_process'
 import net from 'net'
 import { autoUpdater } from 'electron-updater'
+import { discordSetActivity, discordClearActivity, discordShutdown } from './discord'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -100,7 +101,10 @@ app.whenReady().then(() => {
       try {
         const tab = process.env.HYDRA_SHOT_TAB || 'home'
         await win?.webContents.executeJavaScript(`document.querySelector('[data-tab="${tab}"]')?.click(); true`)
-        await new Promise(r => setTimeout(r, 4500))
+        await new Promise(r => setTimeout(r, 800))
+        const sub = process.env.HYDRA_SHOT_SUB
+        if (sub) await win?.webContents.executeJavaScript(`document.querySelector('[data-tab-sub="${sub}"]')?.click(); true`)
+        await new Promise(r => setTimeout(r, sub ? 5500 : 3700))
         const img = await win?.webContents.capturePage()
         if (img) fs.writeFileSync(process.env.HYDRA_SHOT!, img.toPNG())
       } catch (e) { console.error('[shot]', e) }
@@ -109,6 +113,7 @@ app.whenReady().then(() => {
   }
 })
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
+app.on('before-quit', () => { try { discordShutdown() } catch {} })
 
 // --- WINDOW ---
 ipcMain.handle('win:min', () => win?.minimize())
@@ -504,6 +509,18 @@ ipcMain.handle('launch', async (_e, opts:any) => {
   const send = (m:string) => { console.log('[launch]', m); win?.webContents.send('launch-log', m) }
   try{
     send(`→ Hydra preparando ${opts.version} (${opts.loader||'vanilla'}) como ${opts.account?.name}...`)
+    const cfg = readConfigFile()
+    const srvName = opts.server?.ip ? (defaultServers.find(s=>s.ip===opts.server.ip)?.name || opts.server.ip) : ''
+    recordSessionStart({ version: opts.version, loader: opts.loader, server: opts.server?.ip || '' })
+    try { win?.webContents.send('session-start', { version: opts.version }) } catch {}
+    if (cfg?.discordClientId) {
+      discordSetActivity(String(cfg.discordClientId), {
+        details: srvName ? `Jugando en ${srvName}` : `Minecraft ${opts.version}`,
+        state: `${opts.account?.name} • Hydra Launcher`,
+        startTimestamp: Math.floor(Date.now() / 1000),
+        buttons: [{ label: 'Hydra Launcher', url: 'https://scainetprr.github.io/hydra-launcher-web/' }]
+      }).catch(()=>{})
+    }
     const { Client } = await import('minecraft-launcher-core')
     const launcher = new Client()
 
@@ -654,8 +671,18 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     const proc: any = await launcher.launch(launchOpts)
     send(`âœ” Minecraft lanzado PID ${proc?.pid || '?'}`)
     if (proc?.on) {
-      proc.on('close', (code:number)=> send(`  proceso cerrado code ${code}`))
-      proc.on('error', (e:any)=> send(`  proceso error ${String(e)}`))
+      proc.on('close', (code:number)=> {
+        send(`  proceso cerrado code ${code}`)
+        recordSessionEnd(true)
+        try { win?.webContents.send('session-end', true) } catch {}
+        discordClearActivity()
+      })
+      proc.on('error', (e:any)=> {
+        send(`  proceso error ${String(e)}`)
+        recordSessionEnd(false)
+        try { win?.webContents.send('session-end', false) } catch {}
+        discordClearActivity()
+      })
     }
     return { ok: true, pid: proc?.pid }
   }catch(e:any){
@@ -664,6 +691,9 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     send(`âœ— FALLO: ${msg}`)
     if (stack) send(stack.slice(0,3000))
     console.error(e)
+    recordCrash(opts, msg, stack)
+    recordSessionEnd(false)
+    discordClearActivity()
     try { dialog.showErrorBox('Hydra Launcher - fallo al lanzar', `${msg}\n\nRevisa Ajustes → Logs\nJava: ${findJavaCandidates().join(', ') || 'no detectado'}\nVersión: ${opts?.version}`) } catch {}
     return { ok:false, error: msg + '\n' + stack }
   }
@@ -968,3 +998,209 @@ const defaultServers = [
   { id: 'hyperhard', name: 'Servidor Principal', ip: 'mc.hyperhard.space', port: 25565, type: 'principal', desc: 'HyperHard Network — el corazon de la comunidad.', banner: '⛏' },
   { id: 'hydra-eventos', name: 'Eventos Hydra', ip: 'eventos.hyperhard.space', port: 25565, type: 'event', desc: 'Parkour, PvP, Spleef y eventos exclusivos de Hydra.', banner: '🎉' },
 ]
+
+// --- STATS LOCALES (sesiones, tiempo, logros) ---
+const STATS_PATH = path.join(ROOT, 'hydra-stats.json')
+const CRASH_DIR = path.join(ROOT, 'hydra-crashes')
+const COMMUNITY_CACHE = path.join(HYDRA_DIR, 'community-cache.json')
+const NEWS_CACHE = path.join(HYDRA_DIR, 'news-cache.json')
+const RAW_BASE = 'https://raw.githubusercontent.com/scainetprr/hydra-launcher-web/main'
+
+function readStatsFile(): any {
+  try {
+    if (fs.existsSync(STATS_PATH)) return JSON.parse(fs.readFileSync(STATS_PATH, 'utf-8'))
+  } catch {}
+  return { counters: { launches: 0, crashes: 0, playMs: 0, byServer: {} }, sessions: [], achievements: {} }
+}
+function writeStatsFile(s: any): void {
+  try { fs.writeFileSync(STATS_PATH, JSON.stringify(s, null, 2)) } catch {}
+}
+
+const ACHIEVEMENTS = [
+  { id: 'first_launch', icon: '🎮', name: 'Primer arranque', desc: 'Lanza Minecraft por primera vez', test: (s: any) => s.counters.launches >= 1 },
+  { id: 'launch_10', icon: '🚀', name: 'Habitual', desc: '10 lanzamientos', test: (s: any) => s.counters.launches >= 10 },
+  { id: 'launch_50', icon: '🏅', name: 'Veterano Hydra', desc: '50 lanzamientos', test: (s: any) => s.counters.launches >= 50 },
+  { id: 'time_1h', icon: '⏱️', name: 'Primera hora', desc: '1 hora jugada', test: (s: any) => s.counters.playMs >= 3600_000 },
+  { id: 'time_10h', icon: '⏰', name: 'Diez horas', desc: '10 horas jugadas', test: (s: any) => s.counters.playMs >= 36_000_000 },
+  { id: 'time_50h', icon: '🌟', name: 'Cincuenta horas', desc: '50 horas jugadas', test: (s: any) => s.counters.playMs >= 180_000_000 },
+  { id: 'server_hyperhard', icon: '⛏️', name: 'HyperHard', desc: 'Entra al servidor principal', test: (s: any) => (s.counters.byServer?.['mc.hyperhard.space'] || 0) >= 1 },
+  { id: 'server_eventos', icon: '🎉', name: 'Eventos Hydra', desc: 'Entra al servidor de eventos', test: (s: any) => (s.counters.byServer?.['eventos.hyperhard.space'] || 0) >= 1 },
+  { id: 'night_owl', icon: '🌙', name: 'Búho nocturno', desc: 'Juega entre la 0:00 y las 5:00', test: (s: any) => (s.sessions || []).some((x: any) => { const h = new Date(x.start).getHours(); return h >= 0 && h < 5 }) },
+  { id: 'marathon', icon: '🏄', name: 'Maratón', desc: 'Sesión de más de 3 horas', test: (s: any) => (s.sessions || []).some((x: any) => (x.ms || 0) >= 3 * 3600_000) },
+  { id: 'explorer', icon: '🗺️', name: 'Explorador', desc: 'Juega 5 versiones distintas', test: (s: any) => new Set((s.sessions || []).map((x: any) => x.version)).size >= 5 },
+  { id: 'modded', icon: '🧩', name: 'Modder', desc: 'Lanza con Fabric o Forge', test: (s: any) => (s.sessions || []).some((x: any) => x.loader && x.loader !== 'vanilla') },
+]
+
+function evaluateAchievements(s: any): string[] {
+  const earned: string[] = []
+  for (const a of ACHIEVEMENTS) {
+    try {
+      if (!s.achievements[a.id] && a.test(s)) { s.achievements[a.id] = Date.now(); earned.push(a.id) }
+    } catch {}
+  }
+  if (earned.length) writeStatsFile(s)
+  return earned
+}
+
+ipcMain.handle('get-stats', () => {
+  const s = readStatsFile()
+  evaluateAchievements(s)
+  return {
+    ok: true,
+    counters: s.counters,
+    sessions: (s.sessions || []).slice(-40).reverse(),
+    achievements: s.achievements,
+    catalog: ACHIEVEMENTS.map(({ test, ...rest }) => rest)
+  }
+})
+
+let pendingSession: any = null
+function recordSessionStart(info: any) {
+  pendingSession = { start: Date.now(), version: info?.version || '', loader: info?.loader || 'vanilla', server: info?.server || '' }
+}
+function recordSessionEnd(ok: boolean) {
+  if (!pendingSession) return
+  const s = readStatsFile()
+  const end = Date.now()
+  const ms = Math.max(0, end - pendingSession.start)
+  s.sessions = s.sessions || []
+  s.sessions.push({ ...pendingSession, end, ms, ok: ok !== false })
+  if (s.sessions.length > 400) s.sessions = s.sessions.slice(-400)
+  if (ok !== false) {
+    s.counters.launches = (s.counters.launches || 0) + 1
+    s.counters.playMs = (s.counters.playMs || 0) + ms
+    if (pendingSession.server) {
+      s.counters.byServer = s.counters.byServer || {}
+      s.counters.byServer[pendingSession.server] = (s.counters.byServer[pendingSession.server] || 0) + 1
+    }
+  }
+  writeStatsFile(s)
+  evaluateAchievements(s)
+  pendingSession = null
+}
+
+// --- CRASH REPORTER LOCAL ---
+function recordCrash(opts: any, error: string, stack: string): string | null {
+  try {
+    if (!fs.existsSync(CRASH_DIR)) fs.mkdirSync(CRASH_DIR, { recursive: true })
+    const file = path.join(CRASH_DIR, `crash-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
+    const report = {
+      when: new Date().toISOString(),
+      launcher: app.getVersion(),
+      os: `${os.platform()} ${os.release()} (${os.arch()})`,
+      error: String(error).slice(0, 2000),
+      stack: String(stack || '').slice(0, 4000),
+      launch: { version: opts?.version, loader: opts?.loader, ram: opts?.ram, javaPath: opts?.javaPath || 'auto', account: opts?.account?.name, server: opts?.server?.ip || null }
+    }
+    fs.writeFileSync(file, JSON.stringify(report, null, 2))
+    const s = readStatsFile()
+    s.counters.crashes = (s.counters.crashes || 0) + 1
+    writeStatsFile(s)
+    return file
+  } catch { return null }
+}
+
+ipcMain.handle('get-pending-crashes', () => {
+  try {
+    if (!fs.existsSync(CRASH_DIR)) return { ok: true, crashes: [] }
+    const marker = path.join(HYDRA_DIR, 'last-crash-check')
+    let lastCheck = 0
+    try { lastCheck = fs.existsSync(marker) ? Number(fs.readFileSync(marker, 'utf-8')) || 0 : 0 } catch {}
+    const crashes = fs.readdirSync(CRASH_DIR).filter(f => f.endsWith('.json')).map(f => {
+      const p = path.join(CRASH_DIR, f)
+      return { file: p, name: f, mtime: fs.statSync(p).mtimeMs }
+    }).filter(c => c.mtime > lastCheck).sort((a, b) => b.mtime - a.mtime).slice(0, 3)
+    return { ok: true, crashes }
+  } catch { return { ok: true, crashes: [] } }
+})
+ipcMain.handle('dismiss-crashes', () => {
+  try { fs.writeFileSync(path.join(HYDRA_DIR, 'last-crash-check'), String(Date.now())) } catch {}
+  return true
+})
+ipcMain.handle('read-crash', (_e, file: string) => {
+  try {
+    if (!file || !file.startsWith(CRASH_DIR)) return { ok: false, error: 'ruta invalida' }
+    return { ok: true, content: fs.readFileSync(file, 'utf-8') }
+  } catch (e: any) { return { ok: false, error: String(e?.message || e) } }
+})
+ipcMain.handle('shell-open-path', (_e, p: string) => {
+  try {
+    if (!p || !p.startsWith(CRASH_DIR)) return false
+    shell.showItemInFolder(p)
+    return true
+  } catch { return false }
+})
+
+// --- NEWS + SERVIDORES DE COMUNIDAD (JSON curado en el repo publico; solo el owner edita) ---
+async function fetchCachedJson(url: string, cachePath: string, ttlMs: number): Promise<any> {
+  try {
+    const { data } = await axios.get(url, { timeout: 10000 })
+    try { fs.writeFileSync(cachePath, JSON.stringify({ t: Date.now(), data })) } catch {}
+    return data
+  } catch {
+    try {
+      if (fs.existsSync(cachePath)) {
+        const c = JSON.parse(fs.readFileSync(cachePath, 'utf-8'))
+        if (Date.now() - (c.t || 0) < ttlMs * 7) return c.data
+      }
+    } catch {}
+    return null
+  }
+}
+ipcMain.handle('get-news', async () => {
+  const data = await fetchCachedJson(`${RAW_BASE}/news.json`, NEWS_CACHE, 10 * 60_000)
+  return { ok: !!data, posts: data?.posts || [] }
+})
+ipcMain.handle('get-community-servers', async () => {
+  const data = await fetchCachedJson(`${RAW_BASE}/community-servers.json`, COMMUNITY_CACHE, 10 * 60_000)
+  return { ok: !!data, servers: data?.servers || [], updated: data?.updated || '' }
+})
+
+// --- SKINS (Mojang sessionserver + upload con token Microsoft) ---
+ipcMain.handle('get-skin', async (_e, uuidOrName: string) => {
+  try {
+    let uuid = String(uuidOrName || '').replace(/-/g, '')
+    if (!/^[0-9a-f]{32}$/i.test(uuid)) {
+      const { data: prof } = await axios.get(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(uuidOrName)}`, { timeout: 8000 })
+      uuid = String(prof?.id || '').replace(/-/g, '')
+      if (!uuid) return { ok: false, error: 'Cuenta no encontrada en Mojang' }
+    }
+    const { data } = await axios.get(`https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`, { timeout: 8000 })
+    const prop = (data?.properties || []).find((p: any) => p.name === 'textures')
+    if (!prop?.value) return { ok: false, error: 'Sin textura' }
+    const tex = JSON.parse(Buffer.from(prop.value, 'base64').toString('utf-8'))
+    const url = tex?.textures?.SKIN?.url
+    if (!url) return { ok: false, error: 'Sin skin' }
+    const model = tex.textures.SKIN.metadata?.model === 'slim' ? 'slim' : 'classic'
+    const img = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000 })
+    return { ok: true, dataUrl: `data:image/png;base64,${Buffer.from(img.data).toString('base64')}`, model }
+  } catch (e: any) { return { ok: false, error: String(e?.response?.data?.errorMessage || e?.message || e) } }
+})
+
+ipcMain.handle('upload-skin', async (_e, opts: any) => {
+  try {
+    const { b64, variant, msRefresh } = opts || {}
+    if (!b64 || !msRefresh) return { ok: false, error: 'Faltan datos (skin o sesión Microsoft)' }
+    const { Auth } = await import('msmc')
+    const auth = new Auth('select_account')
+    const xbox = await auth.refresh(msRefresh)
+    const mc = await xbox.getMinecraft()
+    const token: string = (mc as any).mclc ? ((mc as any).mclc(false)?.access_token || (mc as any).mcToken) : (mc as any).mcToken
+    if (!token) return { ok: false, error: 'No se pudo obtener el token de Minecraft' }
+    const buf = Buffer.from(String(b64).replace(/^data:image\/png;base64,/, ''), 'base64')
+    if (buf.length < 100 || buf.length > 2_000_000) return { ok: false, error: 'PNG invalido (100B - 2MB)' }
+    const fd = new FormData()
+    fd.append('file', new Blob([new Uint8Array(buf)], { type: 'image/png' }), 'skin.png')
+    fd.append('variant', String(variant || 'classic').toLowerCase() === 'slim' ? 'SLIM' : 'CLASSIC')
+    const r = await fetch('https://api.minecraftservices.com/minecraft/profile/skins', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd as any
+    })
+    if (!r.ok) {
+      const body = await r.text().catch(() => '')
+      return { ok: false, error: `Mojang ${r.status}: ${body.slice(0, 200)}` }
+    }
+    return { ok: true }
+  } catch (e: any) { return { ok: false, error: String(e?.message || e) } }
+})

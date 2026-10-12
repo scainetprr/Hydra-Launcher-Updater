@@ -40,7 +40,7 @@ export default function Settings(){
     if (res?.ok) {
       const latest = res.updateInfo?.version
       if (latest && latest !== appVer) { setUpdInfo(res.updateInfo); setUpdStatus({msg:`Hay una versión nueva: v${latest}`,kind:'ok'}) }
-      else setUpdStatus({msg:`Estas al dia (v${appVer})`,kind:'ok'})
+      else setUpdStatus({msg:`Estás al día (v${appVer})`,kind:'ok'})
     } else setUpdStatus({msg:`Error: ${res?.error||'sin conexión'}`,kind:'err'})
   }
   const installUpdate = () => window.api?.installUpdate?.({ cleanupOld: config.cleanupOldOnUpdate !== false })
@@ -90,8 +90,29 @@ export default function Settings(){
             <option value="1">100%</option>
           </select>
         </div>
-        <div className="text-[11px] text-white/35">Como Ctrl + - en el navegador. Se aplica al reiniciar o al instante.</div>
+        <div className="flex items-center gap-3">
+          <label className="text-xs text-white/50 w-28">Tema / temporada</label>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id:'hydra', name:'Hydra', colors:['#7c3aed','#06b6d4','#ec4899'] },
+              { id:'temporada2', name:'Temporada 2', colors:['#059669','#10b981','#f59e0b'] },
+              { id:'midnight', name:'Midnight', colors:['#2563eb','#6366f1','#38bdf8'] },
+              { id:'inferno', name:'Inferno', colors:['#dc2626','#ea580c','#f59e0b'] },
+              { id:'mono', name:'Mono', colors:['#52525b','#a1a1aa','#e4e4e7'] },
+            ].map(t=>(
+              <button key={t.id} onClick={()=>patchConfig({theme:t.id})}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${(config.theme||'hydra')===t.id?'bg-white text-black border-white':'bg-white/[0.05] border-white/10 text-white/75 hover:bg-white/10'}`}>
+                <span className="flex">{t.colors.map(c=><span key={c} className="w-3 h-3 rounded-full border border-black/20" style={{background:c}}/>)}</span>
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="text-[11px] text-white/35">Se aplica al instante. Los temas de temporada cambian los acentos del launcher.</div>
       </div>
+
+      {/* PERFILES DE LANZAMIENTO */}
+      <ProfilesCard config={config} patchConfig={patchConfig}/>
 
       {/* INTEGRACIONES */}
       <div className="glass rounded-2xl p-5 space-y-3">
@@ -101,8 +122,17 @@ export default function Settings(){
           <input value={config.curseforgeKey || ''} onChange={e=>patchConfig({curseforgeKey:e.target.value})} placeholder="$2a$10$... (opcional)"
             className="flex-1 min-w-[220px] bg-[#14141c] border border-white/10 rounded-xl px-3 py-2 text-sm"/>
         </div>
-        <div className="text-[11px] text-white/35">Modrinth funciona sin clave. Para CurseForge crea una gratis en <b>console.curseforge.com</b> → API Keys.</div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-xs text-white/50 w-28">Discord App ID</label>
+          <input value={config.discordClientId || ''} onChange={e=>patchConfig({discordClientId:e.target.value.replace(/\D/g,'')})} placeholder="ID de tu aplicación de Discord (opcional)"
+            className="flex-1 min-w-[220px] bg-[#14141c] border border-white/10 rounded-xl px-3 py-2 text-sm"/>
+          <span className={`text-[11px] ${config.discordClientId?'text-emerald-300':'text-white/35'}`}>{config.discordClientId?'● Rich Presence activo':'Inactivo'}</span>
+        </div>
+        <div className="text-[11px] text-white/35">Modrinth funciona sin clave. CurseForge: gratis en <b>console.curseforge.com</b> → API Keys. Discord: crea una app en <b>discord.com/developers</b> y pega su Application ID para mostrar tu estado "Jugando en HyperHard".</div>
       </div>
+
+      {/* DIAGNÓSTICO / CRASH REPORTER */}
+      <DiagnosticsCard/>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="glass rounded-2xl p-5 space-y-3">
@@ -115,10 +145,10 @@ export default function Settings(){
               const opts: string[] = []
               for(let g=2; g<=total; g+= g<8?2:4) opts.push(g+'G')
               if (!opts.includes(total+'G')) opts.push(total+'G')
-              return opts.map(v=><option key={v} value={v}>{v} {parseInt(v)===total?'— maximo PC':''}</option>)
+              return opts.map(v=><option key={v} value={v}>{v} {parseInt(v)===total?'— máximo PC':''}</option>)
             })()}
           </select>
-          <label className="text-xs text-white/50">Minima</label>
+          <label className="text-xs text-white/50">Mínima</label>
           <select value={config.ram.min} onChange={e=>set({config:{...config, ram:{...config.ram, min:e.target.value}}})} className="w-full bg-[#14141c] border border-white/10 rounded-xl px-3 py-2">
             {['1G','2G','4G'].map(v=><option key={v} value={v}>{v}</option>)}
           </select>
@@ -132,7 +162,7 @@ export default function Settings(){
             {javas.length? javas.map(j=><div key={j} className="text-xs bg-white/5 border border-white/10 rounded px-2 py-1 truncate">{j}</div>): <div className="text-xs text-white/40">No detectadas - usa Adoptium 17/21</div>}
           </div>
           <input value={config.javaPath} onChange={e=>set({config:{...config, javaPath:e.target.value}})} placeholder="Ruta java.exe custom (opcional)" className="w-full bg-[#14141c] border border-white/10 rounded-xl px-3 py-2 text-sm"/>
-          <div className="text-xs text-white/40">Vacio = auto (usa Java de Minecraft). Para 1.17+ usa Java 17, para 1.21+ Java 21.</div>
+          <div className="text-xs text-white/40">Vacío = auto (usa Java de Minecraft). Para 1.17+ usa Java 17, para 1.21+ Java 21.</div>
         </div>
       </div>
 
@@ -159,9 +189,102 @@ export default function Settings(){
       </div>
 
       <div className="glass rounded-2xl p-4 flex items-center gap-3">
-        <div className="text-sm"><b>Almacenamiento</b><div className="text-xs text-white/50">Ubicacion: %APPDATA%/.minecraft • Versiones, assets y mods compartidos con vanilla</div></div>
+        <div className="text-sm"><b>Almacenamiento</b><div className="text-xs text-white/50">Ubicación: %APPDATA%/.minecraft • Versiones, assets y mods compartidos con vanilla</div></div>
         <button onClick={()=>{ if(confirm('¿Limpiar logs?')) set({logs:[]})}} className="ml-auto bg-white text-black font-bold px-4 py-2 rounded-xl text-sm">Limpiar cache</button>
       </div>
+    </div>
+  )
+}
+
+function ProfilesCard({ config, patchConfig }:{ config:any; patchConfig:(p:any)=>any }){
+  const { selectedVersion, loader, set } = useStore()
+  const profiles = config.profiles || []
+  const [name,setName]=useState('')
+  const [icon,setIcon]=useState('🎯')
+  const [serverIp,setServerIp]=useState('')
+
+  const saveCurrent = ()=>{
+    if(!name.trim()) return
+    const p = {
+      id:'p'+Date.now(), name:name.trim(), icon,
+      version: selectedVersion, loader,
+      ram: { ...config.ram },
+      serverIp: serverIp || ''
+    }
+    const next = patchConfig({ profiles:[...profiles, p] })
+    setName(''); setServerIp('')
+    return next
+  }
+  const remove = (id:string)=> patchConfig({ profiles: profiles.filter((x:any)=>x.id!==id) })
+  const apply = (p:any)=>{
+    set({ selectedVersion:p.version, loader:p.loader, config:{...config, ram:p.ram} })
+    window.api?.saveConfig?.({...config, ram:p.ram})
+  }
+
+  return (
+    <div className="glass rounded-2xl p-5 space-y-3">
+      <div className="font-bold flex items-center gap-2">Perfiles de lanzamiento <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-white/55">{profiles.length}</span></div>
+      {profiles.length ? (
+        <div className="grid sm:grid-cols-2 gap-2">
+          {profiles.map((p:any)=>(
+            <div key={p.id} className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5">
+              <span className="text-lg">{p.icon}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold truncate">{p.name}</div>
+                <div className="text-[11px] text-white/45 truncate">{p.version} • {p.loader} • {p.ram?.max}{p.serverIp?` • ${p.serverIp}`:''}</div>
+              </div>
+              <button onClick={()=>apply(p)} className="text-xs bg-white text-black font-bold px-3 py-1.5 rounded-lg">Aplicar</button>
+              <button onClick={()=>remove(p.id)} className="text-xs px-2 py-1.5 rounded-lg bg-white/10 border border-white/10">✕</button>
+            </div>
+          ))}
+        </div>
+      ) : <div className="text-sm text-white/45">Guarda tu configuración actual (versión, loader, RAM) como perfil para cambiar de setup en 1 clic desde la barra inferior.</div>}
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={icon} onChange={e=>setIcon(e.target.value)} className="bg-[#14141c] border border-white/10 rounded-xl px-2 py-2 text-sm">
+          {['🎯','⚔️','🏗️','🌾','🌍','🔥','🧊','🎮'].map(i=><option key={i} value={i}>{i}</option>)}
+        </select>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre (ej: PvP, Survival, Creative)" className="flex-1 min-w-[180px] bg-[#14141c] border border-white/10 rounded-xl px-3 py-2 text-sm"/>
+        <select value={serverIp} onChange={e=>setServerIp(e.target.value)} className="bg-[#14141c] border border-white/10 rounded-xl px-2 py-2 text-sm">
+          <option value="">— Sin servidor —</option>
+          {config.servers.map((s:any)=><option key={s.id} value={s.ip}>{s.name}</option>)}
+        </select>
+        <button onClick={saveCurrent} className="bg-white text-black font-bold px-4 py-2 rounded-xl text-sm">Guardar perfil actual</button>
+      </div>
+      <div className="text-[11px] text-white/35">Un perfil guarda versión + loader + RAM + servidor. Selecciona desde el desplegable "Perfil" de la barra inferior al instante.</div>
+    </div>
+  )
+}
+
+function DiagnosticsCard(){
+  const [stats,setStats]=useState<any>(null)
+  const [ver,setVer]=useState('')
+  const [copied,setCopied]=useState(false)
+  useEffect(()=>{ window.api?.getStats?.().then(setStats).catch(()=>{}); window.api?.getAppVersion?.().then(setVer).catch(()=>{}) },[])
+  const c = stats?.counters || {}
+  const copy = ()=>{
+    const payload = {
+      launcher: 'hydra-launcher', version: ver,
+      launches: c.launches||0, crashes: c.crashes||0, playMs: c.playMs||0,
+      byServer: c.byServer||{}, os: navigator.userAgent
+    }
+    navigator.clipboard?.writeText(JSON.stringify(payload,null,2))
+    setCopied(true); setTimeout(()=>setCopied(false),2000)
+  }
+  return (
+    <div className="glass rounded-2xl p-5 space-y-3">
+      <div className="font-bold">Diagnóstico y avisos de fallos</div>
+      <div className="text-sm text-white/65">Si Minecraft falla, Hydra guarda un informe local (sin cuentas ni tokens) y te avisa la próxima vez. Puedes copiarlo y pegarlo en Discord para ayudar a arreglarlo.</div>
+      {stats && (
+        <div className="flex flex-wrap gap-3 text-xs">
+          <span className="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10">Lanzamientos: <b>{c.launches||0}</b></span>
+          <span className="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10">Fallos: <b className={c.crashes?'text-red-300':''}>{c.crashes||0}</b></span>
+          <span className="px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10">Sesiones: <b>{(stats.sessions||[]).length}</b></span>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button onClick={copy} className="bg-white text-black font-bold px-4 py-2 rounded-xl text-sm">{copied?'✓ Copiado':'Copiar diagnóstico'}</button>
+      </div>
+      <div className="text-[11px] text-white/35">Los informes viven en %APPDATA%/.minecraft/hydra-crashes. Nada sale de tu PC salvo que lo copies.</div>
     </div>
   )
 }

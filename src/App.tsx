@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useStore } from './store/launcherStore'
+import { useStore, Profile } from './store/launcherStore'
 import Home from './pages/Home'
 import Versions from './pages/Versions'
 import Servers from './pages/Servers'
 import Settings from './pages/Settings'
 import Accounts from './pages/Accounts'
 import Mods from './pages/Mods'
+import Stats from './pages/Stats'
 import { launchGame } from './launch'
 
 declare global { interface Window { api:any } }
@@ -13,10 +14,11 @@ declare global { interface Window { api:any } }
 const nav = [
   { id:'home', label:'Inicio', icon:'◈', desc:'Novedades' },
   { id:'versions', label:'Versiones', icon:'⬢', desc:'Vanilla / Fabric / Forge' },
-  { id:'servers', label:'Servidores', icon:'⬣', desc:'HyperHard • Hydra Eventos' },
+  { id:'servers', label:'Servidores', icon:'⬣', desc:'HyperHard • Comunidad' },
   { id:'modpacks', label:'Mods', icon:'🧩', desc:'Modrinth • CurseForge' },
-  { id:'accounts', label:'Cuentas', icon:'◎', desc:'Microsoft / Offline' },
-  { id:'settings', label:'Ajustes', icon:'⚙', desc:'RAM • Java • Updates' },
+  { id:'stats', label:'Estadísticas', icon:'📊', desc:'Tiempo • Logros' },
+  { id:'accounts', label:'Cuentas', icon:'◎', desc:'Microsoft • Skins' },
+  { id:'settings', label:'Ajustes', icon:'⚙', desc:'Tema • RAM • Java' },
 ]
 
 export default function App(){
@@ -47,10 +49,15 @@ export default function App(){
     })
     window.api?.onLaunchLog?.((m:string)=> addLog(m))
     window.api?.onProgress?.((p:any)=> set({progress:p}))
+    window.api?.onSessionEnd?.(()=>{ /* stats se refrescan al abrir la pestaña */ })
     const onTab = (e:Event)=> setTab((e as CustomEvent).detail)
     document.addEventListener('hydra:tab', onTab)
     return ()=> document.removeEventListener('hydra:tab', onTab)
   },[])
+
+  useEffect(()=>{
+    document.documentElement.dataset.theme = config?.theme && config.theme!=='hydra' ? config.theme : ''
+  },[config?.theme])
 
   useEffect(()=>{ if(config?.ram) window.api?.saveConfig?.(config) }, [config])
   useEffect(()=>{ if(accounts?.length) window.api?.saveAccounts?.(accounts) }, [accounts])
@@ -81,6 +88,7 @@ export default function App(){
       </div>
 
       <UpdateBanner/>
+      <CrashBanner/>
 
       <div className="flex flex-1 min-h-0">
         <aside className="w-[250px] bg-[#0c0c11] border-r border-white/[0.06] p-2.5 flex flex-col gap-2.5 shrink-0">
@@ -109,14 +117,15 @@ export default function App(){
 
         <main className="flex-1 min-w-0 bg-gradient-to-br from-[#07070a] via-[#0b0b14] to-[#07070a] relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full blur-[90px] opacity-20" style={{background:'radial-gradient(circle,#7c3aed,transparent 70%)'}}/>
-            <div className="absolute -bottom-40 -left-40 w-[620px] h-[620px] rounded-full blur-[90px] opacity-15" style={{background:'radial-gradient(circle,#06b6d4,transparent 70%)'}}/>
+            <div className="absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full blur-[90px] opacity-20 bg-blob-1"/>
+            <div className="absolute -bottom-40 -left-40 w-[620px] h-[620px] rounded-full blur-[90px] opacity-15 bg-blob-2"/>
           </div>
           <div className="relative h-full overflow-auto p-5">
             {tab==='home' && <Home/>}
             {tab==='versions' && <Versions/>}
             {tab==='servers' && <Servers/>}
             {tab==='modpacks' && <Mods/>}
+            {tab==='stats' && <Stats/>}
             {tab==='accounts' && <Accounts/>}
             {tab==='settings' && <Settings/>}
           </div>
@@ -172,12 +181,50 @@ function UpdateBanner(){
   )
 }
 
+function CrashBanner(){
+  const [crashes,setCrashes]=useState<any[]>([])
+  const [copied,setCopied]=useState(false)
+  useEffect(()=>{
+    window.api?.getPendingCrashes?.().then((r:any)=> setCrashes(r?.crashes||[])).catch(()=>{})
+  },[])
+  if(!crashes.length) return null
+  const copyReport = async ()=>{
+    const r = await window.api?.readCrash?.(crashes[0].file)
+    if(r?.ok){ navigator.clipboard?.writeText(r.content); setCopied(true); setTimeout(()=>setCopied(false),2000) }
+  }
+  const dismiss = ()=>{ window.api?.dismissCrashes?.(); setCrashes([]) }
+  return (
+    <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 bg-red-600/15 border-b border-red-500/25">
+      <span className="text-sm font-bold text-red-300">⚠ Se detectó un fallo la última vez</span>
+      <span className="text-xs text-white/55">{crashes.length} informe{crashes.length>1?'s':''} guardado{crashes.length>1?'s':''} en tu PC (sin datos privados).</span>
+      <div className="ml-auto flex items-center gap-2">
+        <button onClick={copyReport} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 font-semibold">{copied?'✓ Copiado':'Copiar informe'}</button>
+        <button onClick={()=>window.api?.shellOpenPath?.(crashes[0].file)} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 font-semibold">Abrir</button>
+        <button onClick={dismiss} className="text-xs text-white/50 hover:text-white">Entendido</button>
+      </div>
+    </div>
+  )
+}
+
 function LaunchBar(){
-  const { selectedVersion, loader, activeAccount, accounts, config, progress, launching } = useStore()
+  const { selectedVersion, loader, activeAccount, accounts, config, progress, launching, set } = useStore()
   const [serverPick, setServerPick] = useState<string>('')
+  const [profilePick, setProfilePick] = useState<string>('')
   const acct = activeAccount || accounts[0]
   const server = serverPick ? (()=>{ const s = config.servers.find((x:any)=>`${x.ip}:${x.port}`===serverPick); return s ? { ip:s.ip, port:s.port } : null })() : null
   const pct = progress && typeof progress.percent === 'number' ? Math.round(progress.percent) : null
+  const profiles = config.profiles || []
+
+  const applyProfile = (id: string)=>{
+    setProfilePick(id)
+    const p = profiles.find((x:Profile)=>x.id===id)
+    if (!p) return
+    const cfg = { ...config, ram: p.ram }
+    set({ config: cfg, selectedVersion: p.version, loader: p.loader })
+    window.api?.saveConfig?.(cfg)
+    const srv = p.serverIp ? config.servers.find((x:any)=>x.ip===p.serverIp) : null
+    setServerPick(srv ? `${srv.ip}:${srv.port}` : '')
+  }
 
   return (
     <div className="shrink-0 bg-[#0c0c11] border-t border-white/[0.06] relative">
@@ -196,6 +243,13 @@ function LaunchBar(){
         </div>
 
         <div className="hidden lg:flex items-center gap-2 ml-4">
+          {profiles.length>0 && <>
+            <span className="text-xs text-white/40">Perfil:</span>
+            <select value={profilePick} onChange={e=>applyProfile(e.target.value)} className="bg-[#1c1c26] border border-white/10 rounded-lg px-3 py-2 text-sm">
+              <option value="">— Manual —</option>
+              {profiles.map(p=><option key={p.id} value={p.id}>{p.icon} {p.name}</option>)}
+            </select>
+          </>}
           <span className="text-xs text-white/40"> Conexion:</span>
           <select value={serverPick} onChange={e=>setServerPick(e.target.value)} className="bg-[#1c1c26] border border-white/10 rounded-lg px-3 py-2 text-sm">
             <option value="">— Sin conectar —</option>

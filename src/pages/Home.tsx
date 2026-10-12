@@ -15,9 +15,15 @@ export default function Home() {
   const [events, setEvents] = useState<any>(null)
   const [checks, setChecks] = useState({ total: 0, ok: 0 })
   const [appVer, setAppVer] = useState('')
+  const [news, setNews] = useState<any[]|null>(null)
   const acct = activeAccount || accounts[0]
 
   useEffect(() => { window.api?.getAppVersion?.().then(setAppVer).catch(() => {}) }, [])
+  useEffect(() => {
+    window.api?.getNews?.().then((r:any)=>{
+      setNews((r?.posts||[]).slice(0,3))
+    }).catch(()=>setNews([]))
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -153,20 +159,21 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Novedades */}
+      {/* Novedades — feed curado desde el repo oficial */}
       <div className="grid md:grid-cols-3 gap-4">
-        {[
-          { icon: '🚀', tag: 'Launcher', title: `Hydra v${appVer || '1.1.0'} ya está aquí`, desc: 'Buscador de mods con Modrinth y CurseForge, stats en vivo del servidor y actualizaciones automáticas.' },
-          { icon: '🎉', tag: 'Eventos', title: 'Temporada 2 en curso', desc: 'Parkour, PvP y Spleef en eventos.hyperhard.space. Cada evento queda en el Libro de Hydra.' },
-          { icon: '🧩', tag: 'Mods', title: 'Mods y modpacks en 1 clic', desc: 'Millones de proyectos de Modrinth y CurseForge, filtrados por tu versión y loader.' },
-        ].map(c => (
+        {(news && news.length ? news : [
+          { icon: '🚀', tag: 'Launcher', title: `Hydra v${appVer || '1.2.0'} ya está aquí`, body: 'Buscador de mods con Modrinth y CurseForge, stats en vivo del servidor y actualizaciones automáticas.' },
+          { icon: '🎉', tag: 'Eventos', title: 'Temporada 2 en curso', body: 'Parkour, PvP y Spleef en eventos.hyperhard.space. Cada evento queda en el Libro de Hydra.' },
+          { icon: '🧩', tag: 'Mods', title: 'Mods y modpacks en 1 clic', body: 'Millones de proyectos de Modrinth y CurseForge, filtrados por tu versión y loader.' },
+        ]).map((c: any) => (
           <div key={c.title} className="glass rounded-[20px] p-5 border border-white/10 hover:bg-white/[0.08] transition">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-white text-black grid place-items-center text-base font-bold">{c.icon}</div>
+              <div className="w-9 h-9 rounded-xl bg-white text-black grid place-items-center text-base font-bold">{c.icon || '📰'}</div>
               <span className="text-[10px] font-black tracking-wider text-white/40 uppercase">{c.tag}</span>
+              {c.date && <span className="ml-auto text-[10px] text-white/30">{c.date}</span>}
             </div>
             <div className="font-black mt-3 text-sm">{c.title}</div>
-            <div className="text-xs text-white/60 mt-1.5 leading-relaxed">{c.desc}</div>
+            <div className="text-xs text-white/60 mt-1.5 leading-relaxed line-clamp-4">{c.body || c.desc}</div>
           </div>
         ))}
       </div>
