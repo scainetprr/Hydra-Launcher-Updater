@@ -1,0 +1,29 @@
+{
+  "updated": "2026-10-12",
+  "posts": [
+    {
+      "id": "v120",
+      "icon": "🚀",
+      "tag": "Launcher",
+      "date": "12/10/2026",
+      "title": "Hydra v1.2.0 — skins, comunidad y stats",
+      "body": "Visor 3D de skins con cambio directo a Mojang, servidores de la comunidad con boosts, perfiles de lanzamiento, estadísticas con logros, avisos de fallos y temas de temporada."
+    },
+    {
+      "id": "t2",
+      "icon": "🐉",
+      "tag": "Servidor",
+      "date": "01/10/2026",
+      "title": "Temporada 2 en HyperHard",
+      "body": "El Nido de Hydra ya opera en la Temporada 2. Nuevas misiones, rangos y eventos semanales en el servidor principal y la arena de eventos."
+    },
+    {
+      "id": "ev1",
+      "icon": "🎉",
+      "tag": "Eventos",
+      "date": "20/09/2026",
+      "title": "Eventos Hydra: parkour y PvP",
+      "body": "Cada fin de semana hay parkour, PvP y Spleef en eventos.hyperhard.space. Entra desde el launcher con un clic y compite por el Libro de Hydra."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "updated": "2026-10-12",
+  "note": "Lista curada por Hydra Studio. Solo el owner del repo puede añadir o quitar servidores.",
+  "servers": [
+    {
+      "id": "hyperhard",
+      "name": "HyperHard Network",
+      "ip": "mc.hyperhard.space",
+      "port": 25565,
+      "banner": "⛏",
+      "desc": "Survival, misiones y rangos. El corazón de la comunidad — Temporada 2 en curso.",
+      "tags": ["Survival", "Misiones", "es"],
+      "boosts": 128,
+      "featured": true
+    },
+    {
+      "id": "hydra-eventos",
+      "name": "Eventos Hydra",
+      "ip": "eventos.hyperhard.space",
+      "port": 25565,
+      "banner": "🎉",
+      "desc": "Parkour, PvP, Spleef y eventos exclusivos de Hydra. Compite por el Libro de Hydra.",
+      "tags": ["Eventos", "PvP", "Parkour"],
+      "boosts": 64,
+      "featured": true
+    }
+  ]
+}
