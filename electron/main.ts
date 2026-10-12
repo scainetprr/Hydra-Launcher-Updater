@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
@@ -59,11 +59,19 @@ function createWindow() {
   })
   win.webContents.on('did-fail-load', (_e, code, desc, url) => console.error('[did-fail-load]', code, desc, url))
   win.webContents.on('console-message', (_e, level, msg) => console.log('[renderer]', msg))
+  win.webContents.on('did-finish-load', () => {
+    try {
+      let z = 0.8
+      const cfg = readConfigFile()
+      if (cfg?.uiZoom) z = Number(cfg.uiZoom) || 0.8
+      win?.webContents.setZoomFactor(z)
+    } catch {}
+  })
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL)
     win.webContents.openDevTools({ mode: 'detach' })
   } else {
-    const htmlPath = path.join(__dirname, '../dist/index.html')
+    const htmlPath = path.join(__dirname, '../dist/app.html')
     console.log('[main] loadFile', htmlPath, fs.existsSync(htmlPath))
     win.loadFile(htmlPath)
     // win.webContents.openDevTools({ mode: 'detach' })
@@ -87,6 +95,18 @@ app.whenReady().then(() => {
       console.error('[autoUpdater] error:', err)
     })
   }
+  if (process.env.HYDRA_SHOT) {
+    setTimeout(async () => {
+      try {
+        const tab = process.env.HYDRA_SHOT_TAB || 'home'
+        await win?.webContents.executeJavaScript(`document.querySelector('[data-tab="${tab}"]')?.click(); true`)
+        await new Promise(r => setTimeout(r, 4500))
+        const img = await win?.webContents.capturePage()
+        if (img) fs.writeFileSync(process.env.HYDRA_SHOT!, img.toPNG())
+      } catch (e) { console.error('[shot]', e) }
+      app.exit(0)
+    }, 4000)
+  }
 })
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
 
@@ -104,20 +124,41 @@ ipcMain.handle('check-updates', async () => {
     return { ok: false, error: e.message }
   }
 })
-ipcMain.handle('install-update', async () => {
+ipcMain.handle('install-update', async (_e, opts: any) => {
+  try { if (opts?.cleanupOld !== false) cleanupOldInstallers(app.getVersion()) } catch {}
   autoUpdater.quitAndInstall()
   return { ok: true }
 })
+ipcMain.handle('get-app-version', () => app.getVersion())
+ipcMain.handle('set-zoom', (_e, z: number) => {
+  try { win?.webContents.setZoomFactor(Number(z) || 0.8); return true } catch { return false }
+})
 
 // --- CONFIG ---
-ipcMain.handle('get-config', () => {
-  if (!fs.existsSync(CONFIG_PATH)) return { ram: { min: '1G', max: '4G' }, javaPath: '', resolution: { w: 854, h: 480 }, servers: defaultServers, lastVersion: '26.2', lastLoader: 'vanilla', lastAccountUuid: '' }
+const SERVERS_VERSION = 2
+
+function readConfigFile(): any {
   try {
-    const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
-    if (!cfg.lastVersion) cfg.lastVersion = '26.2'
-    if (!cfg.lastLoader) cfg.lastLoader = 'vanilla'
-    return cfg
-  } catch { return { ram: { min: '1G', max: '4G' }, javaPath: '', resolution: { w: 854, h: 480 }, servers: defaultServers, lastVersion: '26.2', lastLoader: 'vanilla', lastAccountUuid: '' } }
+    if (fs.existsSync(CONFIG_PATH)) return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
+  } catch {}
+  return null
+}
+
+ipcMain.handle('get-config', () => {
+  const base = { ram: { min: '1G', max: '4G' }, javaPath: '', resolution: { w: 854, h: 480 }, servers: defaultServers.map(s=>({...s})), serversVersion: SERVERS_VERSION, cleanupOldOnUpdate: true, uiZoom: 0.8, curseforgeKey: '', lastVersion: '26.2', lastLoader: 'vanilla', lastAccountUuid: '' }
+  const cfg = readConfigFile()
+  if (!cfg) return base
+  if (!cfg.lastVersion) cfg.lastVersion = '26.2'
+  if (!cfg.lastLoader) cfg.lastLoader = 'vanilla'
+  if (cfg.serversVersion !== SERVERS_VERSION) {
+    cfg.servers = defaultServers.map(s=>({...s}))
+    cfg.serversVersion = SERVERS_VERSION
+    try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2)) } catch {}
+  }
+  if (cfg.cleanupOldOnUpdate === undefined) cfg.cleanupOldOnUpdate = true
+  if (!cfg.uiZoom) cfg.uiZoom = 0.8
+  if (cfg.curseforgeKey === undefined) cfg.curseforgeKey = ''
+  return cfg
 })
 ipcMain.handle('save-config', (_e, c) => { fs.writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2)); return true })
 ipcMain.handle('get-accounts', () => fs.existsSync(ACCOUNTS_PATH) ? JSON.parse(fs.readFileSync(ACCOUNTS_PATH,'utf-8')) : [])
@@ -411,18 +452,18 @@ ipcMain.handle('ms-login', async () => {
       msRefresh, mcRefresh,
       exp: (mc as any).exp || 0
     }
-    if (!data.access_token || !data.uuid) throw new Error('Microsoft no devolviÃ³ token/perfil (Â¿cerraste la ventana?)')
+    if (!data.access_token || !data.uuid) throw new Error('Microsoft no devolvió token/perfil (¿cerraste la ventana?)')
     return { ok: true, data }
   } catch(e:any){ return { ok:false, error: String(e?.message||e) } }
 })
 
-// Refresca sesiÃ³n Microsoft usando el refresh token guardado. Devuelve MCLC user fresco o null.
+// Refresca sesión Microsoft usando el refresh token guardado. Devuelve MCLC user fresco o null.
 async function refreshMicrosoft(msRefresh: string, send: (m:string)=>void): Promise<any|null> {
   if (!msRefresh) return null
   try {
     const { Auth } = await import('msmc')
     const auth = new Auth('select_account')
-    send('  refrescando sesiÃ³n Microsoft...')
+    send('  refrescando sesión Microsoft...')
     const xbox = await auth.refresh(msRefresh)
     const mc = await xbox.getMinecraft()
     const mclcUser: any = (mc as any).mclc ? (mc as any).mclc(false) : null
@@ -450,10 +491,10 @@ async function refreshMicrosoft(msRefresh: string, send: (m:string)=>void): Prom
         }
       }
     } catch {}
-    send(`  sesiÃ³n fresca para ${fresh.name}`)
+    send(`  sesión fresca para ${fresh.name}`)
     return fresh
   } catch(e:any) {
-    send(`  âš  no se pudo refrescar (${String(e?.message||e).slice(0,150)}), se usarÃ¡ token guardado`)
+    send(`  ⚠ no se pudo refrescar (${String(e?.message||e).slice(0,150)}), se usará token guardado`)
     return null
   }
 }
@@ -462,7 +503,7 @@ async function refreshMicrosoft(msRefresh: string, send: (m:string)=>void): Prom
 ipcMain.handle('launch', async (_e, opts:any) => {
   const send = (m:string) => { console.log('[launch]', m); win?.webContents.send('launch-log', m) }
   try{
-    send(`â†’ Hydra preparando ${opts.version} (${opts.loader||'vanilla'}) como ${opts.account?.name}...`)
+    send(`→ Hydra preparando ${opts.version} (${opts.loader||'vanilla'}) como ${opts.account?.name}...`)
     const { Client } = await import('minecraft-launcher-core')
     const launcher = new Client()
 
@@ -495,7 +536,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
         }
       }
       if (!token) {
-        throw new Error(`Cuenta Microsoft "${name}" sin token vÃ¡lido. Borra la cuenta en Cuentas y vuelve a hacer "Microsoft â†’" para iniciar sesiÃ³n de nuevo.`)
+        throw new Error(`Cuenta Microsoft "${name}" sin token válido. Borra la cuenta en Cuentas y vuelve a hacer "Microsoft →" para iniciar sesión de nuevo.`)
       }
       auth = {
         access_token: token,
@@ -593,7 +634,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     if (forgePath) launchOpts.forge = forgePath
     if (opts.server?.ip) {
       launchOpts.quickPlay = { type: 'multiplayer', identifier: `${opts.server.ip}:${opts.server.port||25565}` }
-      send(`  quickPlay â†’ ${opts.server.ip}:${opts.server.port||25565}`)
+      send(`  quickPlay → ${opts.server.ip}:${opts.server.port||25565}`)
     }
 
     // logs detallados
@@ -623,15 +664,307 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     send(`âœ— FALLO: ${msg}`)
     if (stack) send(stack.slice(0,3000))
     console.error(e)
-    try { dialog.showErrorBox('Hydra Launcher - fallo al lanzar', `${msg}\n\nRevisa Ajustes â†’ Logs\nJava: ${findJavaCandidates().join(', ') || 'no detectado'}\nVersiÃ³n: ${opts?.version}`) } catch {}
+    try { dialog.showErrorBox('Hydra Launcher - fallo al lanzar', `${msg}\n\nRevisa Ajustes → Logs\nJava: ${findJavaCandidates().join(', ') || 'no detectado'}\nVersión: ${opts?.version}`) } catch {}
     return { ok:false, error: msg + '\n' + stack }
   }
 })
 
-const defaultServers = [
-  { id:'eventos', name:'Eventos Exclusivos', ip:'eventos.tu-servidor.com', port:25565, type:'event', desc:'Tus eventos creados - Parkour, PvP, Spleef', banner:'ðŸŽ‰' },
-  { id:'survival', name:'Survival', ip:'survival.tu-servidor.com', port:25565, type:'survival', desc:'Survival clÃ¡sico 1.20+ con economÃ­a', banner:'ðŸŒ²' },
-  { id:'oneblock', name:'OneBlock', ip:'oneblock.tu-servidor.com', port:25565, type:'oneblock', desc:'Un bloque infinito - Skyblock extremo', banner:'ðŸ§±' },
-  { id:'lobby', name:'Lobby Principal', ip:'lobby.tu-servidor.com', port:25565, type:'lobby', desc:'Conecta y elige modo', banner:'ðŸ°' },
-]
+// --- CLEANUP instaladores antiguos (descargas / escritorio) ---
+function cleanupOldInstallers(currentVersion: string): number {
+  const dirs: string[] = []
+  try { dirs.push(app.getPath('downloads')) } catch {}
+  try { dirs.push(app.getPath('desktop')) } catch {}
+  try { dirs.push(os.tmpdir()) } catch {}
+  const re = /^Hydra-Launcher-(Setup|Portable)-v(\d+\.\d+\.\d+)\.(exe|zip)$/i
+  let removed = 0
+  for (const dir of dirs) {
+    try {
+      if (!dir || !fs.existsSync(dir)) continue
+      for (const f of fs.readdirSync(dir)) {
+        const m = f.match(re)
+        if (!m) continue
+        if (m[2] === currentVersion) continue
+        try { fs.unlinkSync(path.join(dir, f)); removed++ } catch {}
+      }
+    } catch {}
+  }
+  return removed
+}
+ipcMain.handle('cleanup-old-installers', () => {
+  const removed = cleanupOldInstallers(app.getVersion())
+  return { ok: true, removed }
+})
 
+// --- ELIMINAR VERSION DE MINECRAFT INSTALADA ---
+ipcMain.handle('delete-version', async (_e, id: string) => {
+  try {
+    if (!id || id.includes('/') || id.includes('\\') || id.includes('..')) return { ok: false, error: 'ID invalido' }
+    const dir = path.join(ROOT, 'versions', id)
+    if (!fs.existsSync(dir)) return { ok: false, error: 'Version no instalada' }
+    fs.rmSync(dir, { recursive: true, force: true })
+    return { ok: true }
+  } catch (e: any) { return { ok: false, error: String(e?.message || e) } }
+})
+
+// --- PING MINECRAFT (Server List Ping) ---
+function writeVarInt(n: number): Buffer {
+  const bytes: number[] = []
+  let num = n
+  while (true) {
+    let b = num & 0x7f
+    num >>>= 7
+    if (num !== 0) b |= 0x80
+    bytes.push(b)
+    if (num === 0) break
+  }
+  return Buffer.from(bytes)
+}
+function strPacket(s: string): Buffer {
+  const b = Buffer.from(s, 'utf8')
+  return Buffer.concat([writeVarInt(b.length), b])
+}
+function readVarInt(buf: Buffer, pos: { i: number }): number {
+  let num = 0, shift = 0
+  while (true) {
+    if (pos.i >= buf.length) throw new Error('eof')
+    const b = buf[pos.i++]
+    num |= (b & 0x7f) << shift
+    if ((b & 0x80) === 0) break
+    shift += 7
+    if (shift > 35) throw new Error('varint overflow')
+  }
+  return num
+}
+function cleanComponent(c: any): string {
+  if (!c) return ''
+  if (typeof c === 'string') return c
+  if (Array.isArray(c)) return c.map(cleanComponent).join('')
+  return (c.text ? String(c.text) : '') + (Array.isArray(c.extra) ? c.extra.map(cleanComponent).join('') : '')
+}
+
+ipcMain.handle('ping-full', (_e, ip: string, port: number) => new Promise(res => {
+  const start = Date.now()
+  let settled = false
+  let socket: net.Socket | null = null
+  const finish = (r: any) => {
+    if (settled) return
+    settled = true
+    try { socket?.destroy() } catch {}
+    res(r)
+  }
+  try {
+    socket = net.createConnection({ host: ip, port: port || 25565 })
+  } catch { return finish({ online: false }) }
+  let buf = Buffer.alloc(0)
+  setTimeout(() => finish({ online: false }), 5000)
+  socket.on('connect', () => {
+    try {
+      const handshake = Buffer.concat([
+        writeVarInt(0x00),
+        writeVarInt(-1),
+        strPacket(ip),
+        Buffer.from([(port >> 8) & 0xff, port & 0xff]),
+        writeVarInt(1)
+      ])
+      const hs = Buffer.concat([writeVarInt(handshake.length), handshake])
+      const req = Buffer.concat([writeVarInt(1), writeVarInt(0x00)])
+      socket!.write(Buffer.concat([hs, req]))
+    } catch { finish({ online: false }) }
+  })
+  socket.on('data', chunk => {
+    buf = Buffer.concat([buf, chunk])
+    try {
+      const pos = { i: 0 }
+      const len = readVarInt(buf, pos)
+      if (buf.length - pos.i < len) return
+      const packetId = readVarInt(buf, pos)
+      if (packetId !== 0) return
+      const strLen = readVarInt(buf, pos)
+      const jsonStr = buf.slice(pos.i, pos.i + strLen).toString('utf8')
+      const data = JSON.parse(jsonStr)
+      finish({
+        online: true,
+        latency: Date.now() - start,
+        players: { online: data.players?.online ?? 0, max: data.players?.max ?? 0 },
+        version: data.version?.name || '',
+        motd: cleanComponent(data.description)
+      })
+    } catch {}
+  })
+  socket.on('error', () => finish({ online: false }))
+  socket.on('close', () => finish({ online: false }))
+}))
+
+// --- MODS / MODPACKS: Modrinth + CurseForge ---
+async function getCurseForgeKey(): Promise<string> {
+  return readConfigFile()?.curseforgeKey || ''
+}
+const CF_LOADER: Record<string, number> = { forge: 1, fabric: 3, quilt: 4, neoforge: 5, vanilla: 0 }
+
+ipcMain.handle('browse-content', async (_e, opts: any) => {
+  const { source, query, gameVersion, loader, type, limit = 20, offset = 0, index = 'downloads' } = opts || {}
+  try {
+    if (source === 'curseforge') {
+      const key = await getCurseForgeKey()
+      if (!key) return { ok: false, needsKey: true, error: 'Falta la API key de CurseForge (Ajustes -> Integraciones)' }
+      const headers = { 'x-api-key': key, Accept: 'application/json' }
+      const params: any = {
+        gameId: 432,
+        classId: type === 'modpack' ? 4471 : 6,
+        pageSize: Math.min(Number(limit) || 20, 50),
+        index: Number(offset) || 0,
+        sortField: index === 'recent' ? 3 : 6,
+        sortOrder: 'desc'
+      }
+      if (query) params.searchFilter = query
+      if (gameVersion) params.gameVersion = gameVersion
+      if (loader && loader !== 'vanilla') params.modLoaderType = CF_LOADER[loader] || 0
+      const { data } = await axios.get('https://api.curseforge.com/v1/mods/search', { params, headers, timeout: 15000 })
+      return {
+        ok: true,
+        total: data.pagination?.totalCount ?? 0,
+        items: (data.data || []).map((m: any) => ({
+          source: 'curseforge', id: String(m.id), title: m.name, author: m.authors?.[0]?.name || '',
+          description: m.summary || '', downloads: m.downloadCount || 0,
+          icon: m.logo?.thumbnailUrl || m.logo?.url || '',
+          updated: m.dateModified || '', categories: (m.categories || []).map((c: any) => c.name).slice(0, 4)
+        }))
+      }
+    }
+    const facets: string[][] = [[`project_type:${type === 'modpack' ? 'modpack' : 'mod'}`]]
+    if (gameVersion) facets.push([`versions:${gameVersion}`])
+    if (loader && loader !== 'vanilla') facets.push([`categories:${loader}`])
+    const { data } = await axios.get('https://api.modrinth.com/v2/search', {
+      params: { query: query || '', limit, offset, index: index === 'recent' ? 'updated' : index, facets: JSON.stringify(facets) },
+      timeout: 15000
+    })
+    return {
+      ok: true,
+      total: data.total_hits ?? 0,
+      items: (data.hits || []).map((h: any) => ({
+        source: 'modrinth', id: h.project_id, title: h.title, author: h.author || '',
+        description: h.description || '', downloads: h.downloads || 0,
+        icon: h.icon_url || '', updated: h.date_modified || '',
+        categories: (h.categories || []).filter((c: string) => !['client', 'server', 'paper', 'spigot', 'bukkit', 'purpur', 'sponge', 'folia', 'velocity', 'bungeecord', 'waterfall', 'iris', 'liteloader', 'rift', 'minecraft', 'java'].includes(c)).slice(0, 4)
+      }))
+    }
+  } catch (e: any) {
+    return { ok: false, error: String(e?.response?.data?.message || e?.message || e) }
+  }
+})
+
+ipcMain.handle('install-content', async (_e, opts: any) => {
+  const { source, id, type, gameVersion, loader } = opts || {}
+  const send = (m: string) => { console.log('[install]', m); win?.webContents.send('launch-log', m) }
+  const modsDir = path.join(ROOT, 'mods')
+  try {
+    if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true })
+    let fileUrl = '', fileName = ''
+    const cfHeaders = { 'x-api-key': await getCurseForgeKey(), Accept: 'application/json' }
+    if (source === 'modrinth') {
+      const params: any = {}
+      if (gameVersion) params.game_versions = JSON.stringify([gameVersion])
+      if (loader && loader !== 'vanilla') params.loaders = JSON.stringify([loader])
+      const { data: versions } = await axios.get(`https://api.modrinth.com/v2/project/${id}/version`, { params, timeout: 20000 })
+      if (!versions?.length) return { ok: false, error: `Sin versiones compatibles (${gameVersion || '*'} / ${loader || '*'})` }
+      const v = versions[0]
+      const file = (v.files || []).find((f: any) => f.primary) || v.files?.[0]
+      if (!file) return { ok: false, error: 'Version sin archivos' }
+      fileUrl = file.url; fileName = file.filename
+      send(`  Modrinth: ${fileName} (${v.version_number || ''})`)
+    } else if (source === 'curseforge') {
+      if (!cfHeaders['x-api-key']) return { ok: false, needsKey: true, error: 'Falta la API key de CurseForge' }
+      const { data: filesRes } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files`, {
+        params: {
+          pageSize: 50, index: 0,
+          gameVersion: gameVersion || undefined,
+          modLoaderType: loader && loader !== 'vanilla' ? CF_LOADER[loader] : undefined
+        },
+        headers: cfHeaders, timeout: 20000
+      })
+      const file = (filesRes.data || []).find((f: any) => f.isAvailable !== false && !f.isServerPack) || filesRes.data?.[0]
+      if (!file) return { ok: false, error: 'Sin archivos compatibles en CurseForge' }
+      const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files/${file.id}/download-url`, { headers: cfHeaders, timeout: 15000 })
+      fileUrl = dl.data; fileName = file.fileName || (type === 'modpack' ? 'modpack.zip' : `${id}.jar`)
+      send(`  CurseForge: ${fileName}`)
+    } else return { ok: false, error: 'Fuente desconocida' }
+
+    const res = await axios.get(fileUrl, { responseType: 'arraybuffer', timeout: 120000 })
+    const buf = Buffer.from(res.data)
+
+    if (type === 'modpack') {
+      const AdmZip = (await import('adm-zip')).default
+      const zip = new AdmZip(buf)
+      const tempDir = path.join(HYDRA_DIR, 'tmp-pack-' + Date.now())
+      fs.mkdirSync(tempDir, { recursive: true })
+      zip.extractAllTo(tempDir, true)
+      let manifest: any = null
+      let packName = fileName.replace(/\.(mrpack|zip)$/i, '')
+      let installed = 0
+      let skipped = 0
+      const manifestPath = path.join(tempDir, 'modrinth.index.json')
+      const cfManifestPath = path.join(tempDir, 'manifest.json')
+      if (fs.existsSync(manifestPath)) {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+        packName = manifest?.name || packName
+        const files = manifest?.files || []
+        send(`  Modpack ${packName}: ${files.length} archivos...`)
+        for (const f of files) {
+          try {
+            const url = Array.isArray(f.downloads) && f.downloads.length ? f.downloads[0] : ''
+            if (!url) { skipped++; continue }
+            const destPath = path.join(modsDir, path.basename(f.path || ''))
+            const fr = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000 })
+            fs.writeFileSync(destPath, Buffer.from(fr.data))
+            installed++
+            send(`    OK ${path.basename(f.path || '')}`)
+          } catch { skipped++ }
+        }
+        const overrides = path.join(tempDir, 'overrides')
+        if (fs.existsSync(overrides)) {
+          try { fs.cpSync(overrides, ROOT, { recursive: true }) } catch {}
+          send('  overrides aplicados')
+        }
+      } else if (fs.existsSync(cfManifestPath)) {
+        manifest = JSON.parse(fs.readFileSync(cfManifestPath, 'utf-8'))
+        packName = manifest?.name || packName
+        const files = manifest?.files || []
+        send(`  Modpack CF ${packName}: ${files.length} mods...`)
+        for (const f of files) {
+          try {
+            if (!cfHeaders['x-api-key']) { skipped++; continue }
+            const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${f.projectID}/files/${f.fileID}/download-url`, { headers: cfHeaders, timeout: 15000 })
+            const fr = await axios.get(dl.data, { responseType: 'arraybuffer', timeout: 120000 })
+            const m = String(dl.data).split('?')[0].split('/').pop()
+            fs.writeFileSync(path.join(modsDir, decodeURIComponent(m || `${f.projectID}.jar`)), Buffer.from(fr.data))
+            installed++
+          } catch { skipped++ }
+        }
+        const cfOverrides = path.join(tempDir, 'overrides')
+        if (fs.existsSync(cfOverrides)) {
+          try { fs.cpSync(cfOverrides, ROOT, { recursive: true }) } catch {}
+        }
+      } else {
+        try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
+        return { ok: false, error: 'El archivo no tiene manifest (no es un modpack valido)' }
+      }
+      try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
+      send(`  Modpack instalado: ${packName} (${installed} mods${skipped ? `, ${skipped} omitidos` : ''})`)
+      return { ok: true, packName, installed, skipped }
+    }
+
+    const dest = path.join(modsDir, path.basename(fileName))
+    fs.writeFileSync(dest, buf)
+    send(`  Instalado en mods/: ${fileName} (${Math.round(buf.length / 1024)} KB)`)
+    return { ok: true, filename: path.basename(fileName), size: buf.length }
+  } catch (e: any) {
+    const msg = String(e?.response?.data?.message || e?.message || e)
+    send(`  fallo instalando: ${msg}`)
+    return { ok: false, error: msg }
+  }
+})
+
+const defaultServers = [
+  { id: 'hyperhard', name: 'Servidor Principal', ip: 'mc.hyperhard.space', port: 25565, type: 'principal', desc: 'HyperHard Network — el corazon de la comunidad.', banner: '⛏' },
+  { id: 'hydra-eventos', name: 'Eventos Hydra', ip: 'eventos.hyperhard.space', port: 25565, type: 'event', desc: 'Parkour, PvP, Spleef y eventos exclusivos de Hydra.', banner: '🎉' },
+]

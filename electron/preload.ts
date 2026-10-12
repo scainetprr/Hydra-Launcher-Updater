@@ -16,6 +16,16 @@ contextBridge.exposeInMainWorld('api', {
   detectJava: () => ipcRenderer.invoke('detect-java'),
   // servers
   pingServer: (ip:string, port:number) => ipcRenderer.invoke('ping-server', ip, port),
+  pingFull: (ip:string, port:number) => ipcRenderer.invoke('ping-full', ip, port),
+  // versiones / limpieza
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  deleteVersion: (id:string) => ipcRenderer.invoke('delete-version', id),
+  cleanupOldInstallers: () => ipcRenderer.invoke('cleanup-old-installers'),
+  // interfaz
+  setZoom: (z:number) => ipcRenderer.invoke('set-zoom', z),
+  // mods / modpacks (Modrinth + CurseForge)
+  browseContent: (opts:any) => ipcRenderer.invoke('browse-content', opts),
+  installContent: (opts:any) => ipcRenderer.invoke('install-content', opts),
   // auth
   loginMicrosoft: () => ipcRenderer.invoke('ms-login'),
   getInstalled: () => ipcRenderer.invoke('get-installed'),

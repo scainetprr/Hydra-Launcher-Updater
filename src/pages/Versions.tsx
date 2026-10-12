@@ -2,11 +2,23 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store/launcherStore'
 
 export default function Versions(){
-  const { versions, selectedVersion, loader, set } = useStore()
+  const { versions, selectedVersion, loader, set, addLog } = useStore()
   const [q,setQ]=useState('')
   const [type,setType]=useState<'all'|'release'|'snapshot'|'old'>('all')
   const [installed,setInstalled]=useState<string[]>([])
-  useEffect(()=>{ window.api?.getInstalled?.().then((l:string[])=> setInstalled(l||[])).catch(()=>{}) },[])
+  const [busyDel,setBusyDel]=useState<string|''>('')
+  const refreshInstalled = ()=>{ window.api?.getInstalled?.().then((l:string[])=> setInstalled(l||[])).catch(()=>{}) }
+  useEffect(refreshInstalled,[])
+
+  const delVersion = async (id:string, e:React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm(`¿Eliminar la versión "${id}" y todos sus archivos del disco?\n(Es seguro: se puede volver a descargar)`)) return
+    setBusyDel(id)
+    const res = await window.api?.deleteVersion?.(id)
+    setBusyDel('')
+    if (res?.ok) { addLog(`Version eliminada: ${id}`); refreshInstalled() }
+    else addLog(`No se pudo eliminar ${id}: ${res?.error}`)
+  }
 
   const badge = (id:string)=>{
     const isFab = installed.some(x=>x.includes(`fabric`) && x.includes(id))
@@ -73,6 +85,12 @@ export default function Versions(){
                 </div>
                 <div className="text-xs text-white/50">{v.type} • {new Date(v.releaseTime).toLocaleDateString()} {isInstalled && <span className="text-emerald-400">• instalada</span>}</div>
               </div>
+              {isInstalled && (
+                <span onClick={(e)=>delVersion(v.id, e)} title="Eliminar versión del disco"
+                  className="shrink-0 text-[11px] px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-rose-300 hover:border-rose-500/30 cursor-pointer">
+                  {busyDel===v.id?'...':'🗑'}
+                </span>
+              )}
             </div>
             <div className="text-xs text-white/40 mt-2 truncate">{v.url}</div>
           </button>

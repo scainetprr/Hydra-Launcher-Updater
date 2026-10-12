@@ -1,7 +1,7 @@
 {
   "name": "hydra-launcher",
-  "version": "1.0.0",
-  "description": "Hydra Launcher - Launcher original para Eventos / Survival / OneBlock",
+  "version": "1.1.0",
+  "description": "Hydra Launcher - Launcher original para HyperHard Network y Eventos Hydra",
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {

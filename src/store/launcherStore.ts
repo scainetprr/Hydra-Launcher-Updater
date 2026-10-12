@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 type Account = { name: string; uuid: string; type: 'offline'|'microsoft'; access_token?: string }
 type Server = { id:string; name:string; ip:string; port:number; type:string; desc:string; banner:string }
-type Config = { ram:{min:string;max:string}; javaPath:string; resolution:{w:number;h:number}; servers:Server[]; lastVersion?:string; lastLoader?:'vanilla'|'fabric'|'forge'; lastAccountUuid?:string }
+type Config = { ram:{min:string;max:string}; javaPath:string; resolution:{w:number;h:number}; servers:Server[]; lastVersion?:string; lastLoader?:'vanilla'|'fabric'|'forge'; lastAccountUuid?:string; cleanupOldOnUpdate?:boolean; uiZoom?:number; curseforgeKey?:string; serversVersion?:number }
 
 export const useStore = create<{
   versions:any[]|null; latest:any; selectedVersion:string; loader:'vanilla'|'fabric'|'forge'; 

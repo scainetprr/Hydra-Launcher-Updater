@@ -26,6 +26,11 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') }
   },
+  build: {
+    rollupOptions: {
+      input: path.resolve(__dirname, 'app.html')
+    }
+  },
   clearScreen: false,
   server: { port: 5173, strictPort: true }
 })
