@@ -17,8 +17,8 @@
 ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 999px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-.glass { @apply bg-white/[0.06] backdrop-blur-xl border border-white/[0.08]; }
-.glass-strong { @apply bg-[#1c1c26]/80 backdrop-blur-2xl border border-white/10; }
+.glass { @apply bg-white/[0.06] border border-white/[0.08]; }
+.glass-strong { @apply bg-[#1c1c26]/85 backdrop-blur-2xl border border-white/10; }
 .neon-gradient { background: linear-gradient(135deg, var(--acc-1) 0%, var(--acc-2) 50%, var(--acc-3) 100%); }
 .neon-border { border-image: linear-gradient(135deg, var(--acc-1), var(--acc-2)) 1; }
 .text-gradient { background: linear-gradient(135deg, var(--acc-1), var(--acc-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }

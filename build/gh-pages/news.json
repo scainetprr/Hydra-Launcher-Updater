@@ -2,6 +2,14 @@
   "updated": "2026-10-12",
   "posts": [
     {
+      "id": "v131",
+      "icon": "⚡",
+      "tag": "Launcher",
+      "date": "12/10/2026",
+      "title": "Hydra v1.3.1 — presencia Discord y más fluidez",
+      "body": "Discord muestra \"Jugando a Hydra Launcher\" con el servidor mientras usas el launcher. Arranque más rápido, instalador más ligero y secciones que cargan bajo demanda."
+    },
+    {
       "id": "v130",
       "icon": "🎮",
       "tag": "Launcher",

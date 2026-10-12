@@ -11,7 +11,17 @@ function fmtNum(n: number) {
 }
 
 export default function Home() {
-  const { latest, versions, config, activeAccount, accounts, selectedVersion, loader, launching, installedVersions, progress, set } = useStore()
+  const latest = useStore(s=>s.latest)
+  const versions = useStore(s=>s.versions)
+  const config = useStore(s=>s.config)
+  const activeAccount = useStore(s=>s.activeAccount)
+  const accounts = useStore(s=>s.accounts)
+  const selectedVersion = useStore(s=>s.selectedVersion)
+  const loader = useStore(s=>s.loader)
+  const launching = useStore(s=>s.launching)
+  const installedVersions = useStore(s=>s.installedVersions)
+  const progress = useStore(s=>s.progress)
+  const set = useStore(s=>s.set)
   const [main, setMain] = useState<any>(null)
   const [events, setEvents] = useState<any>(null)
   const [checks, setChecks] = useState({ total: 0, ok: 0 })
@@ -103,7 +113,7 @@ export default function Home() {
 
             <div className="flex flex-wrap gap-2 mt-5">
               <span className="bg-white text-black px-3 py-1.5 rounded-xl font-black text-[11px]">⚡ {latest?.release || selectedVersion} HYDRA READY</span>
-              <span className="bg-white/10 backdrop-blur border border-white/15 px-3 py-1.5 rounded-xl text-[11px] font-bold">🧩 Modrinth + CurseForge</span>
+              <span className="bg-white/10 border border-white/15 px-3 py-1.5 rounded-xl text-[11px] font-bold">🧩 Modrinth + CurseForge</span>
               <span className="bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 px-3 py-1.5 rounded-xl text-[11px] font-bold">🛡 Anti-lag Hydra Core</span>
             </div>
 

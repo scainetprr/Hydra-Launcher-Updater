@@ -587,7 +587,7 @@
     <div class="hero-content">
       <div class="hero-badge">
         <div class="dot"></div>
-        <span>Versión 1.3.0 — Disponible</span>
+        <span>Versión 1.3.1 — Disponible</span>
       </div>
       <img src="hydra-logo.png" alt="Hydra Launcher" style="width:96px;height:96px;margin:0 auto 16px;border-radius:24px;display:block;box-shadow:0 0 70px rgba(124,58,237,.55);">
       <h1>
@@ -602,7 +602,7 @@
         <button class="btn-secondary" id="heroPortable">📦 Versión Portable</button>
       </div>
       <div class="hero-stats">
-        <div class="hero-stat"><div class="val">1.3.0</div><div class="lbl">Versión Actual</div></div>
+        <div class="hero-stat"><div class="val">1.3.1</div><div class="lbl">Versión Actual</div></div>
         <div class="hero-stat"><div class="val">50+</div><div class="lbl">Versiones Soportadas</div></div>
         <div class="hero-stat"><div class="val">3</div><div class="lbl">Cargadores</div></div>
         <div class="hero-stat"><div class="val">0</div><div class="lbl">Anuncios</div></div>
@@ -613,7 +613,7 @@
             <div class="preview-dot red"></div>
             <div class="preview-dot yellow"></div>
             <div class="preview-dot green"></div>
-            <span class="preview-title">Hydra Launcher v1.3.0 — dashboard</span>
+            <span class="preview-title">Hydra Launcher v1.3.1 — dashboard</span>
           </div>
           <div class="preview-content">
             <div class="preview-panel">
@@ -700,7 +700,7 @@
           <p>Cada decisión de diseño, cada optimización y cada característica está pensada para darte la mejor experiencia posible: <strong>sin bloatware, sin telemetría invasiva, sin anuncios</strong>.</p>
           <p>Cuando decimos "Corta una cabeza, nacen dos", no es solo un lema — es nuestra filosofía de resiliencia y mejora continua.</p>
           <div class="about-stats">
-            <div class="stat-box"><div class="num">1.3.0</div><div class="lbl">Versión</div></div>
+            <div class="stat-box"><div class="num">1.3.1</div><div class="lbl">Versión</div></div>
             <div class="stat-box"><div class="num">50+</div><div class="lbl">Versiones</div></div>
             <div class="stat-box"><div class="num">100%</div><div class="lbl">Gratis</div></div>
           </div>
@@ -731,6 +731,20 @@
         <div class="sec-line"></div>
       </div>
       <div class="cl-grid">
+        <div class="cl-card reveal">
+          <div class="cl-head">
+            <span class="cl-version">v1.3.1</span>
+            <span class="cl-date">Octubre 2026</span>
+          </div>
+          <h3>Presencia y Optimización</h3>
+          <ul class="cl-list">
+            <li class="added">Discord Rich Presence en reposo: "Jugando a Hydra Launcher" con el servidor y la IP mientras usas el launcher</li>
+            <li class="added">Arranque más fluido: el launcher carga las secciones bajo demanda (inicio ~77% más ligero)</li>
+            <li class="added">Instalador más ligero: eliminadas dependencias innecesarias del paquete</li>
+            <li class="added">Interfaz más suave: reducido el uso de efectos costosos de renderizado</li>
+            <li class="added">skinview3d (visor de skins) se carga solo al abrir Cuentas</li>
+          </ul>
+        </div>
         <div class="cl-card reveal">
           <div class="cl-head">
             <span class="cl-version">v1.3.0</span>
@@ -1145,7 +1159,7 @@
     <div class="footer-grid">
       <div>
         <div class="footer-brand">HYDRA<span> LAUNCHER</span></div>
-        <p class="footer-desc">Launcher oficial de Hydra Studio & HyperHard Network. Versión 1.3.0 — Premium, optimizado y seguro para Minecraft Java Edition.</p>
+        <p class="footer-desc">Launcher oficial de Hydra Studio & HyperHard Network. Versión 1.3.1 — Premium, optimizado y seguro para Minecraft Java Edition.</p>
       </div>
       <div class="footer-col">
         <h4>Producto</h4>
@@ -1258,10 +1272,10 @@
     // Download buttons
     const REPO = 'https://github.com/scainetprr/hydra-launcher-web';
     const dl = (url) => window.open(url, '_blank');
-    document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.0.exe'));
-    document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.0.zip'));
-    document.getElementById('dlExe').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.0.exe'));
-    document.getElementById('dlZip').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.0.zip'));
+    document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.1.exe'));
+    document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.1.zip'));
+    document.getElementById('dlExe').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.1.exe'));
+    document.getElementById('dlZip').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.1.zip'));
     document.getElementById('dlSrc').addEventListener('click', () => dl(REPO));
 
     // Newsletter

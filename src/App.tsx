@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { useStore } from './store/launcherStore'
-import Home from './pages/Home'
-import Versions from './pages/Versions'
-import Servers from './pages/Servers'
-import Settings from './pages/Settings'
-import Accounts from './pages/Accounts'
-import Mods from './pages/Mods'
-import Stats from './pages/Stats'
+
+const Home = lazy(() => import('./pages/Home'))
+const Versions = lazy(() => import('./pages/Versions'))
+const Servers = lazy(() => import('./pages/Servers'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Accounts = lazy(() => import('./pages/Accounts'))
+const Mods = lazy(() => import('./pages/Mods'))
+const Stats = lazy(() => import('./pages/Stats'))
 
 declare global { interface Window { api:any } }
 
@@ -23,7 +24,11 @@ const nav = [
 export default function App(){
   const [tab,setTab]=useState('home')
   const [ready,setReady]=useState(false)
-  const { set, addLog, config, accounts, activeAccount } = useStore()
+  const set = useStore(s=>s.set)
+  const addLog = useStore(s=>s.addLog)
+  const config = useStore(s=>s.config)
+  const accounts = useStore(s=>s.accounts)
+  const activeAccount = useStore(s=>s.activeAccount)
 
   useEffect(()=>{
     let pending = 3
@@ -65,7 +70,8 @@ export default function App(){
 
   useEffect(()=>{ if(ready && config?.ram) window.api?.saveConfig?.(config) }, [config, ready])
   useEffect(()=>{ if(ready && accounts?.length) window.api?.saveAccounts?.(accounts) }, [accounts, ready])
-  const { selectedVersion, loader } = useStore()
+  const selectedVersion = useStore(s=>s.selectedVersion)
+  const loader = useStore(s=>s.loader)
   useEffect(()=>{
     if (!ready || !config || !selectedVersion) return
     const next = { ...config, lastVersion: selectedVersion, lastLoader: loader, lastAccountUuid: activeAccount?.uuid || accounts[0]?.uuid }
@@ -95,7 +101,7 @@ export default function App(){
       <CrashBanner/>
 
       <div className="flex flex-1 min-h-0">
-        <aside className="w-[250px] bg-[#0c0c11]/80 backdrop-blur-xl border-r border-white/[0.06] p-2.5 flex flex-col gap-2.5 shrink-0">
+        <aside className="w-[250px] bg-[#0c0c11]/95 border-r border-white/[0.06] p-2.5 flex flex-col gap-2.5 shrink-0">
           <div className="glass rounded-xl p-2.5 flex items-center gap-2.5 card-hover">
             <img src={`https://mc-heads.net/avatar/${active?.name || 'Steve'}/48`} className="w-9 h-9 rounded-lg bg-white/10" alt=""/>
             <div className="min-w-0">
@@ -125,18 +131,29 @@ export default function App(){
             <div className="absolute -bottom-40 -left-40 w-[620px] h-[620px] rounded-full blur-[90px] opacity-15 bg-blob-2"/>
           </div>
           <div className="relative h-full overflow-auto p-5">
-            <div key={tab} className="page-enter">
-              {tab==='home' && <Home/>}
-              {tab==='versions' && <Versions/>}
-              {tab==='servers' && <Servers/>}
-              {tab==='modpacks' && <Mods/>}
-              {tab==='stats' && <Stats/>}
-              {tab==='accounts' && <Accounts/>}
-              {tab==='settings' && <Settings/>}
-            </div>
+            <Suspense key={tab} fallback={<PageLoading/>}>
+              <div key={tab} className="page-enter">
+                {tab==='home' && <Home/>}
+                {tab==='versions' && <Versions/>}
+                {tab==='servers' && <Servers/>}
+                {tab==='modpacks' && <Mods/>}
+                {tab==='stats' && <Stats/>}
+                {tab==='accounts' && <Accounts/>}
+                {tab==='settings' && <Settings/>}
+              </div>
+            </Suspense>
           </div>
         </main>
       </div>
+    </div>
+  )
+}
+
+function PageLoading(){
+  return (
+    <div className="glass rounded-2xl p-10 text-center text-white/50 text-sm">
+      <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin align-middle mr-2"/>
+      Cargando…
     </div>
   )
 }

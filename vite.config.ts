@@ -27,8 +27,15 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, 'src') }
   },
   build: {
+    minify: 'terser',
+    terserOptions: { compress: { passes: 2 }, mangle: true },
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
-      input: path.resolve(__dirname, 'app.html')
+      input: path.resolve(__dirname, 'app.html'),
+      output: {
+        manualChunks: { vendor: ['react', 'react-dom', 'zustand'] }
+      }
     }
   },
   clearScreen: false,

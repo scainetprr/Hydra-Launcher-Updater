@@ -12,7 +12,12 @@ const PANELS: { id: Panel; icon: string; label: string }[] = [
 ]
 
 export default function Versions(){
-  const { versions, selectedVersion, loader, set, addLog, installedVersions } = useStore()
+  const versions = useStore(s=>s.versions)
+  const selectedVersion = useStore(s=>s.selectedVersion)
+  const loader = useStore(s=>s.loader)
+  const set = useStore(s=>s.set)
+  const addLog = useStore(s=>s.addLog)
+  const installedVersions = useStore(s=>s.installedVersions)
   const [panel,setPanel]=useState<Panel>('recent')
   const [q,setQ]=useState('')
   const [installed,setInstalled]=useState<string[]>([])

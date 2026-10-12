@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/launcherStore'
 import { v3 as uuidv3 } from 'uuid'
-import * as skinview3d from 'skinview3d'
 
 declare global{ interface Window{ api:any } }
 
@@ -10,20 +9,25 @@ function SkinViewer({ url, model }:{ url:string; model:'classic'|'slim' }){
   const viewerRef = useRef<any>(null)
   useEffect(()=>{
     if(!canvasRef.current || !url) return
+    let cancelled = false
     let viewer: any
-    try {
-      viewer = new skinview3d.SkinViewer({ canvas: canvasRef.current, width: 260, height: 340 })
-      viewer.autoRotate = true
-      viewer.autoRotateSpeed = 0.8
-      viewer.zoom = 0.9
-      const anim = new skinview3d.WalkingAnimation()
-      anim.speed = 0.7
-      viewer.animation = anim
-      viewerRef.current = viewer
-      viewer.loadSkin(url).catch(()=>{})
-      if (viewer.playerObject?.skin) viewer.playerObject.skin.modelType = model
-    } catch {}
-    return ()=>{ try { viewer?.dispose?.() } catch {} ; viewerRef.current=null }
+    ;(async ()=>{
+      try {
+        const skinview3d = await import('skinview3d')
+        if (cancelled || !canvasRef.current) return
+        viewer = new skinview3d.SkinViewer({ canvas: canvasRef.current, width: 260, height: 340 })
+        viewer.autoRotate = true
+        viewer.autoRotateSpeed = 0.8
+        viewer.zoom = 0.9
+        const anim = new skinview3d.WalkingAnimation()
+        anim.speed = 0.7
+        viewer.animation = anim
+        viewerRef.current = viewer
+        viewer.loadSkin(url).catch(()=>{})
+        if (viewer.playerObject?.skin) viewer.playerObject.skin.modelType = model
+      } catch {}
+    })()
+    return ()=>{ cancelled = true; try { viewer?.dispose?.() } catch {} ; viewerRef.current=null }
   },[url])
   useEffect(()=>{
     try { if(viewerRef.current?.playerObject?.skin) viewerRef.current.playerObject.skin.modelType = model } catch {}
@@ -32,7 +36,9 @@ function SkinViewer({ url, model }:{ url:string; model:'classic'|'slim' }){
 }
 
 export default function Accounts(){
-  const { accounts, activeAccount, set } = useStore()
+  const accounts = useStore(s=>s.accounts)
+  const activeAccount = useStore(s=>s.activeAccount)
+  const set = useStore(s=>s.set)
   const [name,setName]=useState('')
   const acct: any = activeAccount || accounts[0]
   const [skin,setSkin]=useState<{url:string;model:'classic'|'slim'}|null>(null)

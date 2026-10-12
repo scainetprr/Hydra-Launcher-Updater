@@ -4,7 +4,9 @@ import { launchGame } from '../launch'
 declare global{ interface Window{ api:any } }
 
 export default function Servers(){
-  const { config, set, launching } = useStore()
+  const config = useStore(s=>s.config)
+  const set = useStore(s=>s.set)
+  const launching = useStore(s=>s.launching)
   const [edit,setEdit]=useState(false)
   const [pings,setPings]=useState<Record<string,any>>({})
   const [copied,setCopied]=useState<string|''>('')

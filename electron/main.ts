@@ -54,7 +54,7 @@ function createWindow() {
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true, nodeIntegration: false,
-      webSecurity: false
+      webSecurity: true
     },
     icon: path.join(process.cwd(), 'public/icon.png')
   })
@@ -100,6 +100,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow()
+  setTimeout(() => setIdlePresence(), 3500)
   // Auto-updater en producción
   if (!process.env.VITE_DEV_SERVER_URL) {
     autoUpdater.checkForUpdatesAndNotify()
@@ -184,7 +185,29 @@ ipcMain.handle('get-config', () => {
   if (cfg.curseforgeKey === undefined) cfg.curseforgeKey = ''
   return cfg
 })
-ipcMain.handle('save-config', (_e, c) => { fs.writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2)); return true })
+ipcMain.handle('save-config', (_e, c) => { fs.writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2)); setIdlePresence(c); return true })
+
+// Presencia en Discord mientras el launcher está abierto (sin partida en curso)
+let lastIdleAt = 0
+function setIdlePresence(cfg?: any): void {
+  try {
+    const now = Date.now()
+    if (now - lastIdleAt < 900) return
+    lastIdleAt = now
+    const c = cfg || readConfigFile()
+    if (!c?.discordClientId) { discordClearActivity(); return }
+    const servers: any[] = (c.servers?.length ? c.servers : defaultServers)
+    const s = servers.find((x: any) => x.id === 'hyperhard') || servers[0]
+    const label = s ? (s.id === 'hyperhard' ? 'HyperHard Network' : s.name) : ''
+    const ip = s?.ip || ''
+    discordSetActivity(String(c.discordClientId), {
+      details: 'Jugando a Hydra Launcher',
+      state: ip ? `${label} • ${ip}` : 'Menú principal',
+      buttons: [{ label: 'Hydra Launcher', url: 'https://scainetprr.github.io/hydra-launcher-web/' }],
+      instance: false
+    }).catch(() => {})
+  } catch {}
+}
 ipcMain.handle('get-accounts', () => fs.existsSync(ACCOUNTS_PATH) ? JSON.parse(fs.readFileSync(ACCOUNTS_PATH,'utf-8')) : [])
 ipcMain.handle('save-accounts', (_e, a) => { fs.writeFileSync(ACCOUNTS_PATH, JSON.stringify(a,null,2)); return true })
 
@@ -694,13 +717,15 @@ ipcMain.handle('launch', async (_e, opts:any) => {
         send(`  proceso cerrado code ${code}`)
         recordSessionEnd(true)
         try { win?.webContents.send('session-end', true) } catch {}
-        discordClearActivity()
+        lastIdleAt = 0
+        setIdlePresence()
       })
       proc.on('error', (e:any)=> {
         send(`  proceso error ${String(e)}`)
         recordSessionEnd(false)
         try { win?.webContents.send('session-end', false) } catch {}
-        discordClearActivity()
+        lastIdleAt = 0
+        setIdlePresence()
       })
     }
     return { ok: true, pid: proc?.pid }
@@ -712,7 +737,8 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     console.error(e)
     recordCrash(opts, msg, stack)
     recordSessionEnd(false)
-    discordClearActivity()
+    lastIdleAt = 0
+    setIdlePresence()
     try { dialog.showErrorBox('Hydra Launcher - fallo al lanzar', `${msg}\n\nRevisa Ajustes → Logs\nJava: ${findJavaCandidates().join(', ') || 'no detectado'}\nVersión: ${opts?.version}`) } catch {}
     return { ok:false, error: msg + '\n' + stack }
   }

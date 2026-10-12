@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from 'react'
 import { useStore } from '../store/launcherStore'
 
 export default function Settings(){
-  const { config, set, logs } = useStore()
+  const config = useStore(s=>s.config)
+  const set = useStore(s=>s.set)
+  const logs = useStore(s=>s.logs)
   const [javas,setJavas]=useState<string[]>([])
   const [sysRam,setSysRam]=useState<{totalGB:number,freeGB?:number}|null>(null)
   const logRef = useRef<HTMLPreElement>(null)
@@ -126,9 +128,9 @@ export default function Settings(){
           <label className="text-xs text-white/50 w-28">Discord App ID</label>
           <input value={config.discordClientId || ''} onChange={e=>patchConfig({discordClientId:e.target.value.replace(/\D/g,'')})} placeholder="ID de tu aplicación de Discord (opcional)"
             className="flex-1 min-w-[220px] bg-[#14141c] border border-white/10 rounded-xl px-3 py-2 text-sm"/>
-          <span className={`text-[11px] ${config.discordClientId?'text-emerald-300':'text-white/35'}`}>{config.discordClientId?'● Rich Presence activo':'Inactivo'}</span>
+          <span className={`text-[11px] ${config.discordClientId?'text-emerald-300':'text-white/35'}`}>{config.discordClientId?'● Presencia activa: "Jugando a Hydra Launcher"':'Inactivo'}</span>
         </div>
-        <div className="text-[11px] text-white/35">Modrinth funciona sin clave. CurseForge: gratis en <b>console.curseforge.com</b> → API Keys. Discord: crea una app en <b>discord.com/developers</b> y pega su Application ID para mostrar tu estado "Jugando en HyperHard".</div>
+        <div className="text-[11px] text-white/35">Modrinth <b>no necesita clave</b> (solo la sube el límite de peticiones). CurseForge: gratis en <b>console.curseforge.com</b> → API Keys. Discord: crea una app gratis en <b>discord.com/developers</b> y pega su <b>Application ID</b> (no es la API key de Modrinth) — al abrir Hydra aparecerá "Jugando a Hydra Launcher" con la IP del servidor; al entrar en una partida cambia a "Jugando en HyperHard".</div>
       </div>
 
       {/* DIAGNÓSTICO / CRASH REPORTER */}
@@ -197,7 +199,9 @@ export default function Settings(){
 }
 
 function ProfilesCard({ config, patchConfig }:{ config:any; patchConfig:(p:any)=>any }){
-  const { selectedVersion, loader, set } = useStore()
+  const selectedVersion = useStore(s=>s.selectedVersion)
+  const loader = useStore(s=>s.loader)
+  const set = useStore(s=>s.set)
   const profiles = config.profiles || []
   const [name,setName]=useState('')
   const [icon,setIcon]=useState('🎯')

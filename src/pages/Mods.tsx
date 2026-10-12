@@ -14,7 +14,11 @@ function fmtDL(n: number) {
 }
 
 export default function Mods(){
-  const { selectedVersion, loader, set, addLog, config } = useStore()
+  const selectedVersion = useStore(s=>s.selectedVersion)
+  const loader = useStore(s=>s.loader)
+  const set = useStore(s=>s.set)
+  const addLog = useStore(s=>s.addLog)
+  const config = useStore(s=>s.config)
   const [tab,setTab]=useState<'mods'|'packs'|'mine'>('mods')
   const [source,setSource]=useState<'modrinth'|'curseforge'>('modrinth')
   const [query,setQuery]=useState('')
