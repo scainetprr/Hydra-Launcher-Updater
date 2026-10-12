@@ -7,7 +7,7 @@
 ; ============================================================================
 
 #define MyAppName "Hydra Launcher"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Hydra Studio (scainetprr)"
 #define MyAppURL "https://discord.gg/qyyREajJgC"
 #define MyAppExeName "Hydra Launcher.exe"
