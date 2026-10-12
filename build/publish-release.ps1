@@ -8,7 +8,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$Token,
     
-    [string]$Repo = "scainetprr/Hydra-Launcher-Updater",
+    [string]$Repo = "scainetprr/hydra-launcher-web",
     [string]$InstallerPath = "E:\Launcher\release\Hydra-Launcher-Setup-v$Version.exe",
     [string]$PortablePath = "E:\Launcher\release\Hydra-Launcher-Portable-v$Version.zip"
 )
@@ -125,7 +125,7 @@ files:
     size: $portableSize
 path: Hydra-Launcher-Setup-v$Version.exe
 sha512: $(Get-FileHash -Algorithm SHA512 $InstallerPath | Select-Object -ExpandProperty Hash).ToLower()
-releaseDate: $(Get-Date -Format "yyyy-MM-ddTHH:mm:ss.fffZ")
+releaseDate: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.000Z'))
 "@
 
 $latestYmlPath = "E:\Launcher\release\latest.yml"
@@ -142,4 +142,4 @@ try {
 }
 
 Write-Host "`n🎉 ¡Release v$Version publicado exitosamente!" -ForegroundColor Cyan
-Write-Host "URL: https://github.com/scainetprr/Hydra-Launcher-Updater/releases/tag/v$Version" -ForegroundColor Cyan
+Write-Host "URL: https://github.com/scainetprr/hydra-launcher-web/releases/tag/v$Version" -ForegroundColor Cyan
