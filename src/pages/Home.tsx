@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useStore } from '../store/launcherStore'
 import { launchGame } from '../launch'
 
@@ -10,13 +11,23 @@ function fmtNum(n: number) {
 }
 
 export default function Home() {
-  const { latest, versions, config, activeAccount, accounts, selectedVersion, loader, launching } = useStore()
+  const { latest, versions, config, activeAccount, accounts, selectedVersion, loader, launching, installedVersions, progress, set } = useStore()
   const [main, setMain] = useState<any>(null)
   const [events, setEvents] = useState<any>(null)
   const [checks, setChecks] = useState({ total: 0, ok: 0 })
   const [appVer, setAppVer] = useState('')
   const [news, setNews] = useState<any[]|null>(null)
+  const [vm, setVm] = useState(false)
+  const [vmPos, setVmPos] = useState<{left:number; top:number}>({left:0, top:0})
   const acct = activeAccount || accounts[0]
+  const pct = progress && typeof progress.percent === 'number' ? Math.round(progress.percent) : null
+
+  const toggleVm = (e: React.MouseEvent) => {
+    if (vm) { setVm(false); return }
+    const r = e.currentTarget.getBoundingClientRect()
+    setVmPos({ left: Math.round(r.left), top: Math.round(r.bottom + 8) })
+    setVm(true)
+  }
 
   useEffect(() => { window.api?.getAppVersion?.().then(setAppVer).catch(() => {}) }, [])
   useEffect(() => {
@@ -73,7 +84,7 @@ export default function Home() {
         <div className="relative p-6 md:p-8 grid lg:grid-cols-[1.35fr_0.9fr] gap-6">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-black border border-white/10 grid place-items-center text-lg shadow-[0_0_30px_rgba(124,58,237,0.45)]">🐉</div>
+              <img src="hydra-logo.png" className="w-11 h-11 rounded-2xl bg-black/60 border border-white/10 object-contain p-1 shadow-[0_0_30px_rgba(124,58,237,0.45)]" alt=""/>
               <div>
                 <div className="font-display font-black tracking-tight leading-none">HYDRA LAUNCHER</div>
                 <div className="text-[10px] tracking-[0.22em] text-white/45 mt-0.5">CORTA UNA CABEZA • NACEN DOS</div>
@@ -97,38 +108,73 @@ export default function Home() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 mt-6">
-              <button onClick={()=>launchGame({ ip: principal.ip, port: principal.port || 25565 })} disabled={launching}
-                className="group h-[58px] pl-5 pr-4 rounded-2xl text-left text-white shadow-[0_10px_40px_rgba(34,197,94,0.35)] hover:scale-[1.015] active:scale-[0.985] transition disabled:opacity-60 flex items-center gap-4"
-                style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
-                <span className="text-xl">{launching ? '⏳' : '▶'}</span>
-                <span>
-                  <div className="font-black tracking-wide leading-none">{launching ? 'LANZANDO...' : 'JUGAR EN HYPERHARD'}</div>
-                  <div className="text-[11px] text-white/80 leading-none mt-1">{selectedVersion} • {loader} • {acct?.name}</div>
-                </span>
-              </button>
-              <button onClick={()=>document.dispatchEvent(new CustomEvent('hydra:tab',{detail:'versions'}))}
-                className="h-[58px] px-5 rounded-2xl glass border border-white/10 text-sm font-bold text-white/80 hover:bg-white/[0.08] transition">
-                Cambiar versión
-              </button>
+              <div className="relative flex">
+                <button onClick={()=>launchGame({ ip: principal.ip, port: principal.port || 25565 })} disabled={launching}
+                  className="h-[58px] pl-5 pr-4 rounded-l-2xl text-left text-white shadow-[0_10px_40px_rgba(34,197,94,0.35)] hover:scale-[1.015] active:scale-[0.985] transition disabled:opacity-60 flex items-center gap-4"
+                  style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
+                  <span className="text-xl">{launching ? '⏳' : '▶'}</span>
+                  <span>
+                    <div className="font-black tracking-wide leading-none">{launching ? (pct!==null ? `DESCARGANDO ${pct}%` : 'LANZANDO...') : 'JUGAR EN HYPERHARD'}</div>
+                    <div className="text-[11px] text-white/80 leading-none mt-1">{selectedVersion} • {loader} • {acct?.name}</div>
+                  </span>
+                </button>
+                <button onClick={toggleVm} disabled={launching} data-tab-sub="vmenu"
+                  aria-label="Elegir versión instalada"
+                  className="h-[58px] px-4 rounded-r-2xl text-white text-lg font-black border-l border-black/20 hover:brightness-110 active:scale-[0.97] transition disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)' }}>
+                  {vm ? '▴' : '▾'}
+                </button>
+              </div>
+              <span className="text-[11px] text-white/45 leading-tight">
+                {pct!==null ? <>Descargando… {pct}%<br/><span className="text-emerald-400">● Conexión directa a Mojang</span></> : <>Listo para jugar<br/><span className="text-emerald-400">● Conexión directa a HyperHard</span></>}
+              </span>
             </div>
+
+            {vm && createPortal(<>
+              <div className="fixed inset-0 z-[9998]" onClick={()=>setVm(false)}/>
+              <div className="fixed z-[9999] w-[320px] glass-strong rounded-2xl p-2 drop-in" style={{ left: vmPos.left, top: vmPos.top }}>
+                <div className="text-[11px] font-black text-white/50 px-2 py-1.5 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"/>VERSIONES INSTALADAS
+                  <span className="ml-auto text-white/30">{(installedVersions||[]).length}</span>
+                </div>
+                <div className="max-h-[240px] overflow-auto space-y-1">
+                  {(installedVersions||[]).length===0 && (
+                    <div className="text-xs text-white/45 px-3 py-3">Ninguna versión instalada aún. Instala una desde el navegador de versiones.</div>
+                  )}
+                  {(installedVersions||[]).map((iv:any)=>(
+                    <button key={iv.id} onClick={()=>{ set({selectedVersion:iv.id}); setVm(false) }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition flex items-center gap-2 ${selectedVersion===iv.id?'bg-white text-black font-bold':'hover:bg-white/[0.08] text-white/85'}`}>
+                      <span className="text-white/40 text-xs">⬢</span>
+                      <span className="truncate">{iv.id}</span>
+                      {iv.type==='snapshot' && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-black shrink-0">SNAP</span>}
+                      {selectedVersion===iv.id && <span className="ml-auto text-xs shrink-0">✓</span>}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={()=>{ setVm(false); document.dispatchEvent(new CustomEvent('hydra:tab',{detail:'versions'})) }}
+                  className="w-full mt-1 px-3 py-2.5 rounded-xl text-xs font-bold text-white/70 border border-white/10 hover:bg-white/[0.08] transition text-left">
+                  ⬢ Todas las versiones → navegador
+                </button>
+              </div>
+            </>, document.body)}
           </div>
 
           {/* Nido de Hydra — stats reales */}
-          <div className="glass-strong rounded-[22px] p-4 w-full lg:w-auto self-start">
+          <div className="glass-strong rounded-[22px] p-4 w-full lg:w-auto self-start card-hover">
             <div className="flex items-center justify-between">
               <div className="font-black text-sm">Nido de Hydra</div>
               <span className="text-[11px] px-2 py-1 rounded-full bg-white text-black font-black">TEMPORADA 2</span>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
-              <div className="bg-white/[0.06] rounded-xl p-2.5 text-center border border-white/5">
+              <div className="bg-white/[0.06] rounded-xl p-2.5 text-center border border-white/5 card-hover">
                 <div className="text-lg font-black">{onlineNow !== null ? fmtNum(onlineNow) : '—'}</div>
                 <div className="text-[11px] text-white/50">Jugadores</div>
               </div>
-              <div className="bg-white/[0.06] rounded-xl p-2.5 text-center border border-white/5">
+              <div className="bg-white/[0.06] rounded-xl p-2.5 text-center border border-white/5 card-hover">
                 <div className="text-lg font-black">1</div>
                 <div className="text-[11px] text-white/50">Eventos</div>
               </div>
-              <div className="bg-white/[0.06] rounded-xl p-2.5 text-center border border-white/5">
+              <div className="bg-white/[0.06] rounded-xl p-2.5 text-center border border-white/5 card-hover">
                 <div className="text-lg font-black">{uptime !== null ? `${uptime}%` : '—'}</div>
                 <div className="text-[11px] text-white/50">Uptime</div>
               </div>
@@ -166,7 +212,7 @@ export default function Home() {
           { icon: '🎉', tag: 'Eventos', title: 'Temporada 2 en curso', body: 'Parkour, PvP y Spleef en eventos.hyperhard.space. Cada evento queda en el Libro de Hydra.' },
           { icon: '🧩', tag: 'Mods', title: 'Mods y modpacks en 1 clic', body: 'Millones de proyectos de Modrinth y CurseForge, filtrados por tu versión y loader.' },
         ]).map((c: any) => (
-          <div key={c.title} className="glass rounded-[20px] p-5 border border-white/10 hover:bg-white/[0.08] transition">
+          <div key={c.title} className="glass rounded-[20px] p-5 border border-white/10 hover:bg-white/[0.08] card-hover">
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-white text-black grid place-items-center text-base font-bold">{c.icon || '📰'}</div>
               <span className="text-[10px] font-black tracking-wider text-white/40 uppercase">{c.tag}</span>
@@ -180,7 +226,7 @@ export default function Home() {
 
       {/* Lore + como empezar */}
       <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-4">
-        <div className="glass rounded-[20px] p-5">
+        <div className="glass rounded-[20px] p-5 card-hover">
           <div className="font-black">Lore del servidor</div>
           <p className="text-sm text-white/60 mt-2 leading-relaxed">
             En la <b className="text-white/85">Temporada 1</b>, Hydra desperto en el vacio de HyperHard y de su fuego nacio el Nido de Eventos. Hoy, en la <b className="text-white/85">Temporada 2</b>, dos cabezas dominan la red: el <b>Servidor Principal</b> y la arena de <b>Eventos Hydra</b>. Entra, compite y deja tu nombre en el Libro de Hydra.
@@ -194,7 +240,7 @@ export default function Home() {
             <span className="text-xs px-3 py-1.5 rounded-full border bg-white/5 border-white/10 text-white/45 font-bold">{onlineNow !== null ? `${onlineNow} jugadores ahora` : 'Sin datos'}</span>
           </div>
         </div>
-        <div className="glass rounded-[20px] p-5">
+        <div className="glass rounded-[20px] p-5 card-hover">
           <div className="font-black text-sm">Como empezar (30s)</div>
           <ol className="text-sm text-white/70 mt-3 space-y-2 list-decimal ml-5">
             <li><b>Cuentas</b> → Offline (instant) o Microsoft (premium).</li>

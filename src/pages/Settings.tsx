@@ -54,7 +54,7 @@ export default function Settings(){
       <h2 className="font-display text-2xl font-bold">Ajustes</h2>
 
       {/* ACTUALIZACIONES */}
-      <div className="glass rounded-2xl p-5 space-y-3">
+      <div className="glass rounded-2xl p-5 space-y-3 card-hover">
         <div className="font-bold flex items-center gap-2">Actualizaciones <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/25">v{appVer || '...'}</span></div>
         <div className="flex flex-wrap items-center gap-3">
           <button onClick={checkUpdates} disabled={updStatus.kind==='busy'} className="bg-white text-black font-bold px-4 py-2 rounded-xl text-sm disabled:opacity-50">Buscar actualizaciones</button>
@@ -75,7 +75,7 @@ export default function Settings(){
       </div>
 
       {/* INTERFAZ */}
-      <div className="glass rounded-2xl p-5 space-y-3">
+      <div className="glass rounded-2xl p-5 space-y-3 card-hover">
         <div className="font-bold">Interfaz</div>
         <div className="flex items-center gap-3">
           <label className="text-xs text-white/50 w-28">Zoom de la UI</label>
@@ -115,7 +115,7 @@ export default function Settings(){
       <ProfilesCard config={config} patchConfig={patchConfig}/>
 
       {/* INTEGRACIONES */}
-      <div className="glass rounded-2xl p-5 space-y-3">
+      <div className="glass rounded-2xl p-5 space-y-3 card-hover">
         <div className="font-bold">Integraciones</div>
         <div className="flex items-center gap-3 flex-wrap">
           <label className="text-xs text-white/50 w-28">CurseForge API key</label>
@@ -135,7 +135,7 @@ export default function Settings(){
       <DiagnosticsCard/>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="glass rounded-2xl p-5 space-y-3">
+        <div className="glass rounded-2xl p-5 space-y-3 card-hover">
           <div className="font-bold flex items-center gap-2">Memoria RAM {sysRam && <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">{sysRam.totalGB}GB detectados</span>}</div>
           {sysRam && <div className="text-xs text-white/50">Tu PC: <b>{sysRam.totalGB}GB</b> total • libre ~{sysRam.freeGB}GB • Recomendado ≤ {Math.max(4, sysRam.totalGB-2)}GB para Hydra</div>}
           <label className="text-xs text-white/50">Maxima</label>
@@ -155,7 +155,7 @@ export default function Settings(){
           <div className="text-xs text-white/40">Hydra auto-limita al maximo de tu PC. Para modpacks pesados usa {sysRam? Math.min(8, sysRam.totalGB-2)+'G' : '4-6G'}.</div>
         </div>
 
-        <div className="glass rounded-2xl p-5 space-y-3">
+        <div className="glass rounded-2xl p-5 space-y-3 card-hover">
           <div className="font-bold">Java</div>
           <div className="text-xs text-white/50">Detectadas:</div>
           <div className="space-y-1 max-h-20 overflow-auto">
@@ -166,7 +166,7 @@ export default function Settings(){
         </div>
       </div>
 
-      <div className="glass rounded-2xl p-4">
+      <div className="glass rounded-2xl p-4 card-hover">
         <div className="flex items-center justify-between">
           <div className="font-bold text-sm">Logs / Consola</div>
           <label className="flex items-center gap-1.5 text-xs cursor-pointer">
@@ -188,7 +188,7 @@ export default function Settings(){
         </div>
       </div>
 
-      <div className="glass rounded-2xl p-4 flex items-center gap-3">
+      <div className="glass rounded-2xl p-4 flex items-center gap-3 card-hover">
         <div className="text-sm"><b>Almacenamiento</b><div className="text-xs text-white/50">Ubicación: %APPDATA%/.minecraft • Versiones, assets y mods compartidos con vanilla</div></div>
         <button onClick={()=>{ if(confirm('¿Limpiar logs?')) set({logs:[]})}} className="ml-auto bg-white text-black font-bold px-4 py-2 rounded-xl text-sm">Limpiar cache</button>
       </div>
@@ -222,7 +222,7 @@ function ProfilesCard({ config, patchConfig }:{ config:any; patchConfig:(p:any)=
   }
 
   return (
-    <div className="glass rounded-2xl p-5 space-y-3">
+    <div className="glass rounded-2xl p-5 space-y-3 card-hover">
       <div className="font-bold flex items-center gap-2">Perfiles de lanzamiento <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-white/55">{profiles.length}</span></div>
       {profiles.length ? (
         <div className="grid sm:grid-cols-2 gap-2">
@@ -271,7 +271,7 @@ function DiagnosticsCard(){
     setCopied(true); setTimeout(()=>setCopied(false),2000)
   }
   return (
-    <div className="glass rounded-2xl p-5 space-y-3">
+    <div className="glass rounded-2xl p-5 space-y-3 card-hover">
       <div className="font-bold">Diagnóstico y avisos de fallos</div>
       <div className="text-sm text-white/65">Si Minecraft falla, Hydra guarda un informe local (sin cuentas ni tokens) y te avisa la próxima vez. Puedes copiarlo y pegarlo en Discord para ayudar a arreglarlo.</div>
       {stats && (

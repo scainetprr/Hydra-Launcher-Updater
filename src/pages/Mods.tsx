@@ -149,7 +149,7 @@ export default function Mods(){
         ) : (
           <div className="space-y-2">
             {items.map(it=>(
-              <div key={it.source+it.id} className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] transition">
+              <div key={it.source+it.id} className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] card-hover">
                 {it.icon ? <img src={it.icon} alt="" className="w-12 h-12 rounded-xl bg-white/10 border border-white/10" onError={(e:any)=>{e.target.style.visibility='hidden'}}/> : <div className="w-12 h-12 rounded-xl bg-white/10 grid place-items-center">🧩</div>}
                 <div className="flex-1 min-w-0">
                   <div className="font-bold leading-none truncate flex items-center gap-2">
@@ -176,7 +176,7 @@ export default function Mods(){
 
       {tab==='mine' && (
         <div className="space-y-4">
-          <div className="glass rounded-2xl p-4 border border-white/10">
+          <div className="glass rounded-2xl p-4 border border-white/10 card-hover">
             <h3 className="font-bold mb-3">Crear modpack desde mis mods actuales</h3>
             <p className="text-xs text-white/50 mb-3">Se incluiran <b>{mods.length} mods</b> de <code className="bg-black/30 px-1 rounded">%APPDATA%\.minecraft\mods\</code></p>
             <div className="flex gap-3">
@@ -190,7 +190,7 @@ export default function Mods(){
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {packs.map(pack=>(
-                <div key={pack.id} className="glass rounded-2xl p-4 border border-white/10 hover:bg-white/[0.06] transition">
+                <div key={pack.id} className="glass rounded-2xl p-4 border border-white/10 hover:bg-white/[0.06] card-hover">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-bold text-lg truncate">{pack.name}</h3>
                     <button onClick={()=>deletePack(pack.id)} className="text-red-400 hover:text-red-300 p-1" title="Eliminar">🗑</button>

@@ -61,7 +61,7 @@ export default function Servers(){
         {config.servers.map(s=>{
           const p = pings[s.id]
           return (
-          <div key={s.id} className="glass rounded-[20px] p-5 relative overflow-hidden hover:bg-white/[0.08] transition">
+          <div key={s.id} className="glass rounded-[20px] p-5 relative overflow-hidden hover:bg-white/[0.08] card-hover">
             <div className="absolute inset-0 opacity-[0.06] bg-blob-1"/>
             <div className="relative">
               <div className="flex items-center gap-3">
@@ -117,7 +117,7 @@ export default function Servers(){
               const baseBoosts = s.boosts||0
               const voted = hasVoted(s.id)
               return (
-              <div key={s.id} className="glass rounded-[20px] p-5 relative overflow-hidden hover:bg-white/[0.08] transition">
+              <div key={s.id} className="glass rounded-[20px] p-5 relative overflow-hidden hover:bg-white/[0.08] card-hover">
                 <div className="absolute inset-0 opacity-[0.06] bg-blob-2"/>
                 <div className="relative">
                   <div className="flex items-center gap-3">

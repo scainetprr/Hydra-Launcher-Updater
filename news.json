@@ -2,6 +2,14 @@
   "updated": "2026-10-12",
   "posts": [
     {
+      "id": "v130",
+      "icon": "🎮",
+      "tag": "Launcher",
+      "date": "12/10/2026",
+      "title": "Hydra v1.3.0 — navegador Lunar, logo y animaciones",
+      "body": "Navegador de versiones estilo Lunar con panel de instaladas, botón JUGAR con desplegable de versiones, zoom con Ctrl + / Ctrl -, animaciones con brillo en toda la interfaz y el nuevo logo oficial."
+    },
+    {
       "id": "v120",
       "icon": "🚀",
       "tag": "Launcher",

@@ -77,6 +77,25 @@ function createWindow() {
     win.loadFile(htmlPath)
     // win.webContents.openDevTools({ mode: 'detach' })
   }
+
+  // Ctrl + / Ctrl - / Ctrl 0: zoom de la UI (se guarda en config)
+  const applyZoom = (delta: number | null) => {
+    try {
+      const cw = win!.webContents
+      let z = delta === null ? 0.8 : Math.min(1.5, Math.max(0.6, Math.round((cw.getZoomFactor() + delta) * 100) / 100))
+      cw.setZoomFactor(z)
+      const cfg = readConfigFile() || {}
+      cfg.uiZoom = z
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2))
+      win?.webContents.send('zoom-changed', z)
+    } catch {}
+  }
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown' || !input.control) return
+    if (input.key === '=' || input.key === '+') { applyZoom(0.1); e.preventDefault() }
+    else if (input.key === '-') { applyZoom(-0.1); e.preventDefault() }
+    else if (input.key === '0') { applyZoom(null); e.preventDefault() }
+  })
 }
 
 app.whenReady().then(() => {

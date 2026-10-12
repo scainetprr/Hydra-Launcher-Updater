@@ -44,14 +44,14 @@ export default function Stats(){
           { lbl:'Sesiones', val: String((data.sessions||[]).length) },
           { lbl:'Versiones distintas', val: String(distinctVersions) },
         ].map(s=>(
-          <div key={s.lbl} className="glass rounded-2xl p-4">
+          <div key={s.lbl} className="glass rounded-2xl p-4 card-hover">
             <div className="text-[11px] text-white/45">{s.lbl}</div>
             <div className="text-xl font-black mt-1">{s.val}</div>
           </div>
         ))}
       </div>
 
-      <div className="glass rounded-2xl p-5">
+      <div className="glass rounded-2xl p-5 card-hover">
         <div className="font-bold mb-3">🏆 Logros <span className="text-xs font-normal text-white/45 ml-2">{Object.keys(earned).length}/{(data.catalog||[]).length} desbloqueados</span></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
           {(data.catalog||[]).map((a:any)=>{
@@ -71,7 +71,7 @@ export default function Stats(){
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="glass rounded-2xl p-5">
+        <div className="glass rounded-2xl p-5 card-hover">
           <div className="font-bold mb-3">⛏ Tiempo por servidor</div>
           {serverRows.length ? (
             <div className="space-y-2">
@@ -84,7 +84,7 @@ export default function Stats(){
             </div>
           ) : <div className="text-sm text-white/45">Aún no has entrado a ningún servidor con Hydra.</div>}
         </div>
-        <div className="glass rounded-2xl p-5">
+        <div className="glass rounded-2xl p-5 card-hover">
           <div className="font-bold mb-3">🕐 Últimas sesiones</div>
           {(data.sessions||[]).length ? (
             <div className="space-y-1.5 max-h-[220px] overflow-auto pr-1">

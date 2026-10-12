@@ -92,7 +92,7 @@ export default function Accounts(){
       <h2 className="font-display text-2xl font-bold">Cuentas</h2>
 
       {acct && (
-        <div className="glass rounded-2xl p-5">
+        <div className="glass rounded-2xl p-5 card-hover">
           <div className="flex items-center gap-3 mb-3">
             <div className="font-bold">Skin de <span className="text-gradient">{acct.name}</span></div>
             <select value={variant} onChange={e=>setVariant(e.target.value as any)} className="ml-auto bg-[#14141c] border border-white/10 rounded-lg px-2 py-1.5 text-xs">
@@ -114,7 +114,7 @@ export default function Accounts(){
         </div>
       )}
 
-      <div className="glass rounded-2xl p-5 flex gap-3">
+      <div className="glass rounded-2xl p-5 card-hover flex gap-3">
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre offline (sin premium)" className="flex-1 bg-[#14141c] border border-white/10 rounded-xl px-4 py-3 outline-none"/>
         <button onClick={addOffline} className="bg-white text-black font-bold px-5 rounded-xl">Añadir offline</button>
         <button onClick={loginMs} className="neon-gradient text-white font-bold px-5 rounded-xl">Microsoft →</button>
@@ -122,7 +122,7 @@ export default function Accounts(){
 
       <div className="grid gap-3">
         {accounts.map(a=>(
-          <div key={a.uuid} onClick={()=>set({activeAccount:a})} className={`glass rounded-2xl p-4 flex items-center gap-3 cursor-pointer border-2 ${activeAccount?.uuid===a.uuid?'border-violet-500 bg-violet-500/10':'border-transparent'}`}>
+          <div key={a.uuid} onClick={()=>set({activeAccount:a})} className={`glass rounded-2xl p-4 flex items-center gap-3 cursor-pointer card-hover border-2 ${activeAccount?.uuid===a.uuid?'border-violet-500 bg-violet-500/10':'border-transparent'}`}>
             <img src={`https://mc-heads.net/avatar/${a.name}/64`} className="w-12 h-12 rounded-xl bg-white/10"/>
             <div>
               <div className="font-bold">{a.name} {activeAccount?.uuid===a.uuid && <span className="text-xs bg-violet-600 text-white px-2 py-0.5 rounded-full ml-2">ACTIVA</span>}</div>
