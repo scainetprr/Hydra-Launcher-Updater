@@ -17,7 +17,7 @@
 #define SourceDir "E:\Launcher\release\win-unpacked"
 ; Directorio salida
 #define OutputDir "E:\Launcher\release"
-#define OutputBaseName "Hydra-Launcher-Setup-v1.0.0"
+#define OutputBaseName "Hydra-Launcher-Setup-v" + MyAppVersion
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
