@@ -98,6 +98,34 @@
     .btn-nav { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; border: none; padding: 8px 20px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none; letter-spacing: 1px; transition: transform .2s, box-shadow .2s; }
     .btn-nav:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
 
+    /* Nav login */
+    .nav-auth { position: relative; }
+    .btn-auth { display: flex; align-items: center; gap: 7px; background: var(--card); color: var(--fg); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; letter-spacing: .5px; transition: all .2s; white-space: nowrap; }
+    .btn-auth:hover, .btn-auth.open { border-color: var(--accent); color: var(--accent); }
+    .btn-auth .auth-label { font-size: 15px; line-height: 1; }
+    .nav-admin-badge { display: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; cursor: default; }
+    .nav-auth-menu { position: absolute; top: calc(100% + 10px); right: 0; width: 260px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.6); z-index: 1200; animation: fadeUp .25s ease; display: none; }
+    .nav-auth-menu.open { display: block; }
+    .nav-auth-menu .auth-title { color: var(--fg); font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+    .nav-auth-menu .auth-sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 12px; }
+    .auth-provider { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; margin-bottom: 8px; border-radius: 9px; border: 1px solid var(--border); background: var(--bg3); color: var(--fg); font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all .2s; }
+    .auth-provider:last-of-type { margin-bottom: 0; }
+    .auth-provider:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+    .auth-provider .p-ico { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+    .auth-provider .p-ico.g { background: #fff; color: #111; }
+    .auth-provider .p-ico.gh { background: #24292f; color: #fff; }
+    .nav-auth-in { display: flex; align-items: center; gap: 10px; }
+    .nav-auth-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .nav-auth-info { min-width: 0; }
+    .nav-auth-info b { display: block; color: var(--fg); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+    .nav-auth-info small { color: var(--muted); font-size: 11px; }
+    .auth-logout { margin-left: auto; padding: 6px 12px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; cursor: pointer; transition: all .2s; flex-shrink: 0; }
+    .auth-logout:hover { color: var(--red); border-color: var(--red); }
+
+    /* Toast */
+    #hydraToast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(24px); background: var(--card); border: 1px solid var(--accent); color: var(--fg); padding: 13px 24px; border-radius: 12px; font-size: 14px; font-weight: 700; opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 3000; box-shadow: 0 16px 50px rgba(0,0,0,.7); }
+    #hydraToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
     /* ===== HERO ===== */
     .hero { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; position: relative; overflow: hidden; padding: 100px 20px 60px; }
     .hero-glow { position: absolute; top: 50%; left: 50%; width: 800px; height: 800px; background: radial-gradient(circle, rgba(0,212,170,.15), transparent 70%); border-radius: 50%; animation: pulseGlow 4s ease-in-out infinite; pointer-events: none; }
@@ -419,6 +447,10 @@
       .about-stats { grid-template-columns: repeat(3, 1fr); }
       .footer-grid { grid-template-columns: 1fr; }
       .nl-form { flex-direction: column; }
+      .auth-text { display: none; }
+      .btn-auth { padding: 8px 12px; }
+      .btn-nav { display: none; }
+      .nav-admin-badge { padding: 6px 8px; font-size: 10px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
@@ -470,6 +502,8 @@
     .review-message { color: var(--muted); font-size: 14px; line-height: 1.7; margin: 0; }
     .review-via { color: var(--dim); font-size: 11px; margin-top: 8px; display: block; }
     .reviews-empty { text-align: center; padding: 60px 20px; color: var(--dim); }
+    .reviews { background: var(--bg); padding: 100px 20px; }
+    .review-form { display: block; }
 
     /* ===== Q&A CARD (public) ===== */
     .qa-item {
@@ -517,6 +551,30 @@
       </ul>
       <div class="nav-actions">
         <button class="theme-btn" id="themeBtn" title="Cambiar tema">◐</button>
+        <span class="nav-admin-badge" id="navAdminBadge" title="Panel de administración activo">👑 ADMIN</span>
+        <div class="nav-auth" id="navAuth">
+          <button class="btn-auth" id="navAuthBtn" aria-haspopup="true" aria-expanded="false">
+            <span class="auth-label" id="navAuthIcon">👤</span><span class="auth-text" id="navAuthText">Iniciar sesión</span>
+          </button>
+          <div class="nav-auth-menu" id="navAuthMenu">
+            <div id="navAuthOut">
+              <p class="auth-title">Inicia sesión</p>
+              <p class="auth-sub">Publica reseñas, haz preguntas y recibe respuestas del equipo.</p>
+              <button type="button" class="auth-provider" onclick="authLogin('google')"><span class="p-ico g">G</span>Iniciar con Google</button>
+              <button type="button" class="auth-provider" onclick="authLogin('github')"><span class="p-ico gh">GH</span>Iniciar con GitHub</button>
+            </div>
+            <div id="navAuthIn" style="display:none;">
+              <div class="nav-auth-in">
+                <span class="nav-auth-avatar" id="navAuthAvatar">U</span>
+                <div class="nav-auth-info">
+                  <b id="navAuthName">Usuario</b>
+                  <small id="navAuthMail"></small>
+                </div>
+                <button type="button" class="auth-logout" onclick="authLogout()">Salir</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <a href="#downloads" class="btn-nav">DESCARGAR</a>
       </div>
     </div>
@@ -570,7 +628,7 @@
               <div class="mock-item"><div class="mock-dot"></div><span class="mock-text">Custom Client Pack</span><span class="mock-version">12 mods</span></div>
             </div>
             <div class="preview-panel">
-              <h4>🔐 Cuentas</h3>
+              <h4>🔐 Cuentas</h4>
               <div class="mock-item"><div class="mock-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6"></div><span class="mock-text">scainetprr (Microsoft)</span><span class="mock-version">Premium</span></div>
               <div class="mock-item"><div class="mock-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b"></div><span class="mock-text">PlayerOffline</span><span class="mock-version">Offline</span></div>
               <div class="mock-item"><div class="mock-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6"></div><span class="mock-text">HydraBot</span><span class="mock-version">Bot</span></div>
@@ -759,7 +817,7 @@
         </div>
         <div class="faq-item reveal">
           <div class="faq-q"><p>¿Cómo reporto un bug?</p><span class="icon">+</span></div>
-          <div class="faq-a"><p>Únete a nuestro <a href="https://discord.gg/qyyREajJgC" target="_blank">Discord</a> o abre un issue en <a href="https://github.com/scainetprr/Hydra-Launcher-Updater/issues" target="_blank">GitHub</a>. Incluye logs, versión del launcher y pasos para reproducir.</p></div>
+          <div class="faq-a"><p>Únete a nuestro <a href="https://discord.gg/qyyREajJgC" target="_blank">Discord</a> o abre un issue en <a href="https://github.com/scainetprr/hydra-launcher-web/issues" target="_blank">GitHub</a>. Incluye logs, versión del launcher y pasos para reproducir.</p></div>
         </div>
       </div>
     </div>
@@ -887,7 +945,7 @@
         <p class="sec-kicker">— PANEL DE ADMINISTRACIÓN —</p>
         <h2 class="sec-title">GESTIÓN DE PREGUNTAS</h2>
         <div class="sec-line"></div>
-        <p class="sec-sub" style="color: var(--accent);">Triple-click en logo HYDRA para alternar este panel</p>
+        <p class="sec-sub" style="color: var(--accent);">Doble-click en el logo HYDRA para alternar este panel</p>
       </div>
       <div class="admin-qa-list" id="adminQAList"></div>
     </div>
@@ -1048,7 +1106,7 @@
       <div class="footer-col">
         <h4>Comunidad</h4>
         <a href="https://discord.gg/qyyREajJgC" target="_blank">Discord</a>
-        <a href="https://github.com/scainetprr/Hydra-Launcher-Updater" target="_blank">GitHub</a>
+        <a href="https://github.com/scainetprr/hydra-launcher-web" target="_blank">GitHub</a>
         <a href="https://www.youtube.com/@HyperHardNetwork" target="_blank">YouTube</a>
       </div>
       <div class="footer-col">
@@ -1128,10 +1186,14 @@
     });
 
     // Reveal on scroll
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
-    }, { threshold: 0.1 });
-    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(entries => {
+        entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
+      }, { threshold: 0.05, rootMargin: '0px 0px -5% 0px' });
+      document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    } else {
+      document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+    }
 
     // FAQ accordion
     document.querySelectorAll('.faq-item').forEach(item => {
@@ -1143,7 +1205,7 @@
     });
 
     // Download buttons
-    const REPO = 'https://github.com/scainetprr/Hydra-Launcher-Updater';
+    const REPO = 'https://github.com/scainetprr/hydra-launcher-web';
     const dl = (url) => window.open(url, '_blank');
     document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.0.0.exe'));
     document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.0.0.zip'));
@@ -1201,6 +1263,31 @@ menuBtn.addEventListener('click', () => {
       menuBtn.classList.toggle('active');
       document.querySelector('.nav-links').classList.toggle('open');
     });
+
+    // ===== NAV AUTH DROPDOWN =====
+    const navAuthBtn = document.getElementById('navAuthBtn');
+    const navAuthMenu = document.getElementById('navAuthMenu');
+    function closeAuthMenu() { navAuthMenu.classList.remove('open'); navAuthBtn.classList.remove('open'); navAuthBtn.setAttribute('aria-expanded', 'false'); }
+    navAuthBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = navAuthMenu.classList.toggle('open');
+      navAuthBtn.classList.toggle('open', open);
+      navAuthBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', e => {
+      if (!document.getElementById('navAuth').contains(e.target)) closeAuthMenu();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAuthMenu(); });
+
+    // Toast flotante
+    window.hydraToast = function(msg) {
+      let t = document.getElementById('hydraToast');
+      if (!t) { t = document.createElement('div'); t.id = 'hydraToast'; document.body.appendChild(t); }
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.classList.remove('show'), 3000);
+    };
 
     // ===== UTILIDADES COMUNES =====
     const REVIEW_KEY = 'hydra_reviews';
@@ -1334,7 +1421,7 @@ menuBtn.addEventListener('click', () => {
         date: new Date().toLocaleDateString('es-CO'),
         provider: u.provider || 'local',
         createdAt: Date.now(),
-        approved: u.isAdmin === true
+        approved: isAdminUser(u) || window.IS_ADMIN === true
       };
       const list = getReviews();
       list.unshift(review);
@@ -1448,28 +1535,60 @@ menuBtn.addEventListener('click', () => {
       const question = document.getElementById('qaQuestion').value.trim();
       if (!name || !email || !question) return showMsg('qaFormMsg', 'Completa todos los campos', 'var(--red)');
       const list = getQA();
-      list.unshift({ name, email, question, timestamp: Date.now(), isAdmin: u && (u.email?.includes('@hydrastudio') || u.displayName?.toLowerCase().includes('scainetprr')) });
+      list.unshift({ name, email, question, timestamp: Date.now(), isAdmin: isAdminUser(u) || window.IS_ADMIN === true });
       saveQA(list);
       e.target.reset();
       renderQA(); renderAdminQA();
       showMsg('qaFormMsg', 'Pregunta enviada. Te notificaremos por email cuando la respondan.', 'success');
     });
 
-    // ===== AUTH SIMULATION (Google/GitHub) =====
+    // ===== AUTH (Google/GitHub) — sesión persistente =====
+    const AUTH_KEY = 'hydra_auth_user';
     window.authCurrentUser = null;
+
+    function isAdminUser(u) {
+      return !!u && (String(u.email || '').includes('@hydrastudio') || String(u.displayName || '').toLowerCase().includes('scainetprr'));
+    }
+
+    // Sincroniza estado admin: flag del localStorage O usuario staff
+    function syncAdmin() {
+      const flag = localStorage.getItem(ADMIN_KEY) === 'true';
+      window.IS_ADMIN = flag || isAdminUser(window.authCurrentUser);
+      document.getElementById('adminQA').style.display = flag ? 'block' : 'none';
+      document.getElementById('adminReviews').style.display = flag ? 'block' : 'none';
+      const badge = document.getElementById('navAdminBadge');
+      if (badge) badge.style.display = flag ? 'inline-block' : 'none';
+      const status = document.getElementById('qaAuthStatus');
+      if (status) status.textContent = window.IS_ADMIN ? ' 👑 Modo Admin activo' : '';
+      return flag;
+    }
+
     function refreshAuthUI(u) {
       window.authCurrentUser = u;
-      const isAdmin = u && (u.email?.includes('@hydrastudio') || u.displayName?.toLowerCase().includes('scainetprr'));
-      window.IS_ADMIN = isAdmin;
-      const revOut = document.getElementById('revFormBox').querySelector('form');
+      try { u ? localStorage.setItem(AUTH_KEY, JSON.stringify(u)) : localStorage.removeItem(AUTH_KEY); } catch (e) {}
+      syncAdmin();
+      const nm = u ? (u.displayName || (u.email ? u.email.split('@')[0] : 'Usuario')) : '';
+
+      // UI del botón en la barra de navegación
+      document.getElementById('navAuthIcon').textContent = u ? (nm[0] || 'U').toUpperCase() : '👤';
+      document.getElementById('navAuthText').textContent = u ? nm : 'Iniciar sesión';
+      document.getElementById('navAuthOut').style.display = u ? 'none' : '';
+      document.getElementById('navAuthIn').style.display = u ? '' : 'none';
+      if (u) {
+        document.getElementById('navAuthName').textContent = nm;
+        document.getElementById('navAuthMail').textContent = u.email || u.provider || '';
+        document.getElementById('navAuthAvatar').textContent = (nm[0] || 'U').toUpperCase();
+        if (typeof closeAuthMenu === 'function') closeAuthMenu();
+      }
+
+      // UI de los formularios (reseñas / Q&A)
+      const revOut = document.getElementById('reviewFormBox').querySelector('form');
       const revIn = document.getElementById('revAuthBox');
       const revName = document.getElementById('revName');
       const qaOut = document.getElementById('qaFormWrap').querySelector('form');
       const qaIn = document.getElementById('qaAuthBox');
       const qaName = document.getElementById('qaName');
-      const status = document.getElementById('qaAuthStatus');
       if (u) {
-        const nm = u.displayName || (u.email ? u.email.split('@')[0] : 'Usuario');
         revOut.style.display = 'none'; revIn.style.display = '';
         document.getElementById('revAuthName').textContent = nm;
         document.getElementById('revAuthUid').textContent = 'UID: ' + u.uid;
@@ -1478,13 +1597,11 @@ menuBtn.addEventListener('click', () => {
         document.getElementById('qaAuthName').textContent = nm;
         document.getElementById('qaAuthUid').textContent = 'UID: ' + u.uid;
         qaName.value = nm;
-        if (status) status.textContent = isAdmin ? ' 👑 Modo Admin activo' : '';
       } else {
         revOut.style.display = ''; revIn.style.display = 'none';
         revName.value = '';
         qaOut.style.display = ''; qaIn.style.display = 'none';
         qaName.value = '';
-        if (status) status.textContent = '';
       }
       document.getElementById('revSubmitBtn').disabled = false;
       document.getElementById('qaForm').querySelector('button[type=submit]').disabled = false;
@@ -1500,33 +1617,43 @@ menuBtn.addEventListener('click', () => {
       const user = providers[provider];
       if (!user) return;
       refreshAuthUI(user);
+      window.hydraToast('✓ Sesión iniciada como ' + user.displayName);
     };
     window.authLogout = function() {
       refreshAuthUI(null);
+      window.hydraToast('Sesión cerrada');
     };
 
-    // Check admin flag
+    // ===== ACTIVACIÓN ADMIN: doble-click en el logo HYDRA =====
     function checkAdmin() {
-      const isAdmin = localStorage.getItem(ADMIN_KEY) === 'true';
-      document.getElementById('adminQA').style.display = isAdmin ? 'block' : 'none';
-      document.getElementById('adminReviews').style.display = isAdmin ? 'block' : 'none';
-      const status = document.getElementById('qaAuthStatus');
-      if (status) status.textContent = isAdmin ? ' 👑 Modo Admin activo' : '';
-      // Secret: triple-click logo
+      syncAdmin();
+      if (checkAdmin._bound) return;
+      checkAdmin._bound = true;
       let clicks = 0, timer;
       document.querySelector('.nav-logo').addEventListener('click', () => {
         clicks++; clearTimeout(timer);
-        timer = setTimeout(() => clicks = 0, 1000);
-        if (clicks >= 3) {
-          localStorage.setItem(ADMIN_KEY, !isAdmin);
-          location.reload();
+        timer = setTimeout(() => { clicks = 0; }, 900);
+        if (clicks >= 2) {
+          clicks = 0; clearTimeout(timer);
+          const next = localStorage.getItem(ADMIN_KEY) === 'true' ? 'false' : 'true';
+          localStorage.setItem(ADMIN_KEY, next);
+          syncAdmin();
+          renderReviews(); renderAdminReviews(); renderQA(); renderAdminQA();
+          if (next === 'true') {
+            window.hydraToast('👑 Modo Admin activado — paneles de gestión visibles');
+            setTimeout(() => { const el = document.getElementById('adminQA'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 350);
+          } else {
+            window.hydraToast('Modo Admin desactivado');
+          }
         }
       });
     }
 
     // Initial renders
     setRevRating(5);
-    renderReviews(); renderAdminReviews(); renderQA(); renderAdminQA(); checkAdmin();
+    checkAdmin();
+    try { const su = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); if (su && su.uid) refreshAuthUI(su); } catch (e) {}
+    renderReviews(); renderAdminReviews(); renderQA(); renderAdminQA();
 
     // Expose for console
     window.hydraReviews = { getReviews, saveReviews, renderReviews, renderAdminReviews };
