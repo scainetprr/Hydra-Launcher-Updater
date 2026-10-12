@@ -23,33 +23,38 @@ const nav = [
 
 export default function App(){
   const [tab,setTab]=useState('home')
+  const [ready,setReady]=useState(false)
   const { set, addLog, config, accounts, activeAccount } = useStore()
 
   useEffect(()=>{
-    Promise.all([
-      window.api?.getVersions?.().catch(()=>null),
-      window.api?.getConfig?.().catch(()=>null),
-      window.api?.getAccounts?.().catch(()=>null),
-      window.api?.getInstalledVersionsFull?.().then((l:any)=> set({installedVersions: l||[]})).catch(()=>{})
-    ]).then(([vData,cData,aData,vData2])=>{
+    let pending = 3
+    const done = ()=>{ if(--pending<=0) setReady(true) }
+
+    window.api?.getVersions?.().then((vData:any)=>{
       if (vData?.versions) {
-        const savedVer = cData?.lastVersion
-        const savedLoader = cData?.lastLoader
-        const foundInstalled = vData2?.find((x:any)=> x.id===savedVer)
-        const ver = foundInstalled ? savedVer : (savedVer && vData.versions.some((x:any)=>x.id===savedVer) ? savedVer : vData.latest.release)
-        const load = savedLoader || 'vanilla'
-        set({versions:vData.versions, latest:vData.latest, selectedVersion: ver, loader: load, installedVersions: vData2 || []})
+        const { config: cfg } = useStore.getState()
+        const savedVer = cfg?.lastVersion
+        const savedLoader = cfg?.lastLoader
+        const ver = savedVer && vData.versions.some((x:any)=>x.id===savedVer) ? savedVer : vData.latest.release
+        set({versions:vData.versions, latest:vData.latest, selectedVersion: ver, loader: savedLoader || 'vanilla'})
       }
+    }).catch(()=>{}).finally(done)
+
+    window.api?.getInstalledVersionsFull?.().then((l:any)=> set({installedVersions: l||[]})).catch(()=>{}).finally(done)
+
+    window.api?.getConfig?.().catch(()=>null).then((cData:any)=>{
       if (cData) set({config:cData})
-      if (aData?.length) {
-        const savedUuid = cData?.lastAccountUuid
-        const active = savedUuid ? aData.find((x:any)=>x.uuid===savedUuid) || aData[0] : aData[0]
-        set({accounts:aData, activeAccount:active})
-      }
-    })
+      return window.api?.getAccounts?.().catch(()=>null).then((aData:any)=>{
+        if (aData?.length) {
+          const savedUuid = cData?.lastAccountUuid || aData[0]?.uuid
+          const active = aData.find((x:any)=>x.uuid===savedUuid) || aData[0]
+          set({accounts:aData, activeAccount:active})
+        }
+      })
+    }).finally(done)
+
     window.api?.onLaunchLog?.((m:string)=> addLog(m))
     window.api?.onProgress?.((p:any)=> set({progress:p}))
-    window.api?.onSessionEnd?.(()=>{ /* stats se refrescan al abrir la pestaña */ })
     const onTab = (e:Event)=> setTab((e as CustomEvent).detail)
     document.addEventListener('hydra:tab', onTab)
     return ()=> document.removeEventListener('hydra:tab', onTab)
@@ -59,16 +64,16 @@ export default function App(){
     document.documentElement.dataset.theme = config?.theme && config.theme!=='hydra' ? config.theme : ''
   },[config?.theme])
 
-  useEffect(()=>{ if(config?.ram) window.api?.saveConfig?.(config) }, [config])
-  useEffect(()=>{ if(accounts?.length) window.api?.saveAccounts?.(accounts) }, [accounts])
+  useEffect(()=>{ if(ready && config?.ram) window.api?.saveConfig?.(config) }, [config, ready])
+  useEffect(()=>{ if(ready && accounts?.length) window.api?.saveAccounts?.(accounts) }, [accounts, ready])
   const { selectedVersion, loader } = useStore()
   useEffect(()=>{
-    if (!config || !selectedVersion) return
+    if (!ready || !config || !selectedVersion) return
     const next = { ...config, lastVersion: selectedVersion, lastLoader: loader, lastAccountUuid: activeAccount?.uuid || accounts[0]?.uuid }
     if (next.lastVersion===config.lastVersion && next.lastLoader===config.lastLoader && next.lastAccountUuid===config.lastAccountUuid) return
     set({config: next})
     window.api?.saveConfig?.(next)
-  },[selectedVersion, loader, activeAccount?.uuid, accounts[0]?.uuid])
+  },[selectedVersion, loader, activeAccount?.uuid, accounts[0]?.uuid, ready])
 
   const active = activeAccount || accounts[0]
 
