@@ -1,14 +1,1302 @@
-<!doctype html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hydra Launcher - Definitivo</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hydra Launcher — Hydra Studio & HyperHard Network</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐍</text></svg>">
+  <meta name="description" content="Hydra Launcher — El launcher oficial de Hydra Studio. Vanilla, Fabric, Forge, modpacks, auto-updater.">
+  <meta property="og:title" content="Hydra Launcher">
+  <meta property="og:description" content="El launcher oficial de Hydra Studio & HyperHard Network">
+  <meta name="theme-color" content="#000000">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #000000;
+      --bg2: #080808;
+      --bg3: #111111;
+      --fg: #ffffff;
+      --muted: #6b7280;
+      --dim: #374151;
+      --accent: #00d4aa;
+      --accent2: #9b59b6;
+      --accent-glow: rgba(0,212,170,.35);
+      --violet-glow: rgba(155,89,182,.25);
+      --border: rgba(255,255,255,.07);
+      --border-hover: rgba(0,212,170,.4);
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --card: #0a0a0a;
+    }
+    [data-theme="light"] {
+      --bg: #f5f5f7;
+      --bg2: #ffffff;
+      --bg3: #ffffff;
+      --fg: #111111;
+      --muted: #6b7280;
+      --dim: #9ca3af;
+      --border: rgba(0,0,0,.1);
+      --border-hover: rgba(0,168,136,.5);
+      --card: #ffffff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--fg); font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+    /* ===== ANIMACIONES ===== */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+    @keyframes pulseGlow { 0%,100% { opacity:.15; transform:translate(-50%,-50%) scale(1); } 50% { opacity:.35; transform:translate(-50%,-50%) scale(1.1); } }
+    @keyframes bounce { 0%,100% { transform:translateX(-50%) translateY(0); } 50% { transform:translateX(-50%) translateY(10px); } }
+    @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+    @keyframes borderGlow { 0%,100% { box-shadow:0 0 30px var(--accent-glow); } 50% { box-shadow:0 0 60px var(--accent-glow), 0 0 100px rgba(0,212,170,.15); } }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+    @keyframes nebulaDrift1 { 0% { transform:translate(0,0); } 25% { transform:translate(10px,-15px); } 50% { transform:translate(-5px,-25px); } 75% { transform:translate(-15px,-10px); } 100% { transform:translate(0,0); } }
+    @keyframes nebulaDrift2 { 0% { transform:translate(0,0); } 50% { transform:translate(-15px,20px); } 100% { transform:translate(0,0); } }
+    @keyframes gridPulse { 0%,100% { opacity:.4; } 50% { opacity:.7; } }
+    @keyframes countUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+    .reveal { opacity: 0; transform: translateY(40px); transition: opacity .8s ease, transform .8s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ===== BACKGROUND ===== */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: -3;
+      background-image: linear-gradient(rgba(0,212,170,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,170,.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridPulse 8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .nebula { position: fixed; z-index: -2; pointer-events: none; filter: blur(80px); }
+    .nebula-1 { top: -200px; left: -200px; width: 700px; height: 700px; background: radial-gradient(circle, rgba(0,212,170,.12), transparent 70%); animation: nebulaDrift1 25s ease-in-out infinite; }
+    .nebula-2 { bottom: -200px; right: -200px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(155,89,182,.10), transparent 70%); animation: nebulaDrift2 30s ease-in-out infinite; }
+    .nebula-3 { top: 50%; left: 50%; width: 800px; height: 300px; background: radial-gradient(ellipse, rgba(0,212,170,.05), transparent 70%); animation: nebulaDrift1 20s ease-in-out infinite reverse; }
+
+    /* Particles */
+    .particle { position: fixed; width: 3px; height: 3px; border-radius: 50%; pointer-events: none; z-index: -1; }
+    .particle:nth-child(odd) { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .particle:nth-child(even) { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+
+    /* ===== NAV ===== */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: transparent; border-bottom: 1px solid transparent;
+      transition: all .3s ease; padding: 0 24px;
+    }
+    nav.scrolled { background: rgba(0,0,0,.95); border-bottom-color: #1a1a1a; backdrop-filter: blur(20px); }
+    [data-theme="light"] nav.scrolled { background: rgba(255,255,255,.95); border-bottom-color: var(--border); }
+    .nav-inner { max-width: 1200px; margin: 0 auto; height: 70px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { font-size: 20px; font-weight: 900; letter-spacing: -1px; text-decoration: none; color: var(--fg); }
+    .nav-logo span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 4px; list-style: none; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; padding: 8px 12px; border-radius: 8px; transition: all .2s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+    .nav-actions { display: flex; gap: 8px; align-items: center; }
+    .theme-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--fg); cursor: pointer; transition: all .2s; font-size: 16px; }
+    .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-nav { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; border: none; padding: 8px 20px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none; letter-spacing: 1px; transition: transform .2s, box-shadow .2s; }
+    .btn-nav:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+
+    /* ===== HERO ===== */
+    .hero { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; position: relative; overflow: hidden; padding: 100px 20px 60px; }
+    .hero-glow { position: absolute; top: 50%; left: 50%; width: 800px; height: 800px; background: radial-gradient(circle, rgba(0,212,170,.15), transparent 70%); border-radius: 50%; animation: pulseGlow 4s ease-in-out infinite; pointer-events: none; }
+    .hero-glow-2 { position: absolute; top: 50%; left: 50%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(155,89,182,.12), transparent 70%); border-radius: 50%; animation: pulseGlow 3s ease-in-out infinite reverse; pointer-events: none; }
+    .hero-content { position: relative; z-index: 10; animation: fadeUp 1s ease forwards; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,212,170,.1); border: 1px solid rgba(0,212,170,.3); border-radius: 999px; padding: 8px 20px; margin-bottom: 32px; }
+    .hero-badge .dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: blink 1.5s infinite; }
+    .hero-badge span { color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; }
+    .hero h1 { font-family: 'Orbitron', sans-serif; font-size: clamp(48px, 11vw, 120px); font-weight: 900; letter-spacing: -4px; line-height: .95; margin-bottom: 8px; }
+    .hero h1 .white { color: var(--fg); text-shadow: 0 0 80px rgba(255,255,255,.08); }
+    .hero h1 .gradient { background: linear-gradient(135deg, var(--accent), var(--accent2)); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer 3s linear infinite; }
+    .hero-divider { width: 150px; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent); margin: 24px auto; background-size: 200% auto; animation: shimmer 2s linear infinite; }
+    .hero-sub { color: var(--muted); font-size: clamp(13px, 2vw, 16px); letter-spacing: 5px; text-transform: uppercase; font-weight: 300; margin-bottom: 12px; }
+    .hero-desc { color: var(--dim); font-size: 15px; max-width: 600px; margin: 0 auto 48px; line-height: 1.7; }
+    .hero-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 64px; }
+    .btn-primary { background: var(--accent); color: #000; padding: 16px 40px; font-size: 16px; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; letter-spacing: 1px; animation: borderGlow 2s ease-in-out infinite; transition: transform .3s, box-shadow .3s; }
+    .btn-primary:hover { transform: scale(1.07) translateY(-2px); box-shadow: 0 12px 40px var(--accent-glow); }
+    .btn-secondary { border: 1px solid rgba(0,212,170,.5); color: var(--accent); background: transparent; padding: 16px 40px; font-size: 16px; font-weight: 700; border-radius: 10px; cursor: pointer; letter-spacing: 1px; text-decoration: none; display: inline-block; backdrop-filter: blur(10px); transition: all .3s; }
+    .btn-secondary:hover { background: rgba(0,212,170,.1); transform: scale(1.05) translateY(-2px); }
+    .hero-stats { display: flex; gap: 56px; justify-content: center; flex-wrap: wrap; margin-bottom: 60px; }
+    .hero-stat { text-align: center; }
+    .hero-stat .val { font-size: 32px; font-weight: 900; color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
+    .hero-stat .lbl { font-size: 11px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 6px; }
+    .hero-preview { position: relative; max-width: 900px; margin: 0 auto; }
+    .preview-frame {
+      background: linear-gradient(180deg, #0d0d0d 0%, #080808 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.03);
+      transform: perspective(1000px) rotateX(-2deg);
+      transition: transform .4s ease;
+    }
+    .preview-frame:hover { transform: perspective(1000px) rotateX(0deg); }
+    .preview-header { background: #0a0a0a; border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 8px; }
+    .preview-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .preview-dot.red { background: #ff5f56; box-shadow: 0 0 8px #ff5f56; }
+    .preview-dot.yellow { background: #ffbd2e; box-shadow: 0 0 8px #ffbd2e; }
+    .preview-dot.green { background: #27c93f; box-shadow: 0 0 8px #27c93f; }
+    .preview-title { color: var(--muted); font-size: 12px; margin-left: 8px; font-family: monospace; }
+    .preview-content { padding: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .preview-panel { background: #050505; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .preview-panel h4 { color: var(--fg); font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .preview-panel .mock-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--border); }
+    .preview-panel .mock-item:last-child { border-bottom: none; }
+    .preview-panel .mock-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .preview-panel .mock-text { flex: 1; }
+    .preview-panel .mock-version { color: var(--accent); font-family: monospace; font-size: 12px; }
+    .scroll-arrow { position: absolute; bottom: 32px; left: 50%; color: var(--dim); font-size: 24px; animation: bounce 2s infinite; }
+
+    /* Mobile menu */
+    .menu-btn { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--fg); cursor: pointer; }
+    .menu-btn:hover { border-color: var(--accent); }
+    .menu-btn span { display: block; width: 20px; height: 2px; background: var(--fg); position: relative; transition: all .3s; }
+    .menu-btn span::before, .menu-btn span::after { content: ''; position: absolute; left: 0; width: 20px; height: 2px; background: var(--fg); transition: all .3s; }
+    .menu-btn span::before { top: -6px; }
+    .menu-btn span::after { bottom: -6px; }
+    .menu-btn.active span { background: transparent; }
+    .menu-btn.active span::before { transform: rotate(45deg); top: 0; }
+    .menu-btn.active span::after { transform: rotate(-45deg); bottom: 0; }
+    @media (max-width: 900px) {
+      .menu-btn { display: flex; }
+      .nav-links { position: fixed; top: 70px; left: 0; right: 0; background: rgba(0,0,0,.98); backdrop-filter: blur(20px); flex-direction: column; padding: 20px; gap: 0; border-bottom: 1px solid var(--border); transform: translateY(-100%); opacity: 0; pointer-events: none; transition: all .3s ease; }
+      [data-theme="light"] .nav-links { background: rgba(255,255,255,.98); }
+      .nav-links.open { transform: translateY(0); opacity: 1; pointer-events: all; }
+      .nav-links a { width: 100%; text-align: center; padding: 16px; font-size: 15px; }
+    }
+
+    /* ===== SECTIONS COMMON ===== */
+    section { position: relative; overflow: hidden; }
+    .sec-divider { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+    .sec-divider-bottom { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .sec-header { text-align: center; margin-bottom: 64px; }
+    .sec-kicker { color: var(--accent); font-size: 12px; letter-spacing: 6px; text-transform: uppercase; font-weight: 600; margin-bottom: 16px; }
+    .sec-title { font-size: clamp(32px, 5vw, 56px); font-weight: 900; color: var(--fg); letter-spacing: -2px; margin: 0; }
+    .sec-title .grad { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .sec-line { width: 80px; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); margin: 16px auto 0; }
+    .sec-sub { color: var(--muted); font-size: 15px; margin-top: 16px; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+    /* ===== FEATURES ===== */
+    .features { background: var(--bg); padding: 100px 20px; }
+    .feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .feat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px 28px; position: relative; overflow: hidden;
+      transition: all .35s ease; cursor: default;
+    }
+    .feat-card::before { content: ''; position: absolute; top: 0; left: 24px; width: 40px; height: 2px; background: var(--accent); transition: width .3s; }
+    .feat-card:hover { border-color: var(--border-hover); transform: translateY(-6px); box-shadow: 0 0 40px rgba(0,212,170,.1); }
+    .feat-card:hover::before { width: 80%; }
+    .feat-icon { width: 52px; height: 52px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+    .feat-card h3 { font-size: 17px; font-weight: 800; color: var(--fg); margin-bottom: 10px; }
+    .feat-card p { color: var(--muted); font-size: 14px; line-height: 1.7; margin: 0; }
+
+    /* ===== ABOUT ===== */
+    .about { background: var(--bg2); padding: 100px 20px; }
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+    .about-text p { color: var(--muted); line-height: 1.8; margin-bottom: 16px; font-size: 15px; }
+    .about-text p strong { color: var(--accent); }
+    .about-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+    .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px 16px; text-align: center; transition: all .3s; }
+    .stat-box:hover { border-color: var(--border-hover); transform: translateY(-4px); }
+    .stat-box .num { font-family: 'Orbitron', sans-serif; font-size: 32px; font-weight: 900; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-box .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
+    .about-visual {
+      aspect-ratio: 1; background: linear-gradient(135deg, var(--card), var(--bg));
+      border: 1px solid var(--border); border-radius: 24px;
+      display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+      animation: float 6s ease-in-out infinite;
+    }
+    .about-visual::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 30%, rgba(0,212,170,.12), transparent 50%), radial-gradient(circle at 70% 70%, rgba(155,89,182,.12), transparent 50%); }
+    .about-visual svg { width: 55%; height: 55%; position: relative; z-index: 1; filter: drop-shadow(0 0 40px var(--accent-glow)); }
+
+    /* ===== CHANGELOG ===== */
+    .changelog { background: var(--bg); padding: 100px 20px; }
+    .cl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; }
+    .cl-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all .3s; }
+    .cl-card:hover { border-color: var(--border-hover); transform: translateY(-4px); }
+    .cl-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .cl-version { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; padding: 4px 14px; border-radius: 6px; font-size: 13px; font-weight: 800; font-family: 'Orbitron', sans-serif; }
+    .cl-date { color: var(--dim); font-size: 13px; }
+    .cl-card h3 { font-size: 16px; margin-bottom: 14px; color: var(--fg); }
+    .cl-list { list-style: none; }
+    .cl-list li { color: var(--muted); font-size: 13.5px; padding: 5px 0 5px 22px; position: relative; line-height: 1.5; }
+    .cl-list li::before { content: '▸'; position: absolute; left: 0; }
+    .cl-list li.added::before { color: #4ade80; }
+    .cl-list li.fixed::before { color: var(--red); }
+    .cl-list li.changed::before { color: var(--accent); }
+
+    /* ===== FAQ ===== */
+    .faq { background: var(--bg2); padding: 100px 20px; }
+    .faq-list { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item {
+      background: linear-gradient(180deg, rgba(18,18,18,.96), rgba(8,8,8,.98));
+      border: 1px solid rgba(255,255,255,.05); border-radius: 16px;
+      overflow: hidden; cursor: pointer; transition: all .35s ease;
+    }
+    [data-theme="light"] .faq-item { background: var(--card); border-color: var(--border); }
+    .faq-item:hover { border-color: var(--border-hover); transform: translateY(-3px); box-shadow: 0 0 40px rgba(0,212,170,.08); }
+    .faq-q { padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .faq-q p { color: var(--fg); font-size: 15px; font-weight: 700; margin: 0; }
+    .faq-q .icon { color: var(--accent); font-size: 26px; font-weight: 300; transition: transform .3s; line-height: 1; }
+    .faq-item.active .faq-q .icon { transform: rotate(45deg); }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height .35s ease, padding .35s ease; padding: 0 24px; }
+    .faq-item.active .faq-a { max-height: 300px; padding: 0 24px 20px; }
+    .faq-a p { color: var(--muted); font-size: 14px; line-height: 1.7; margin: 0; }
+    .faq-a a { color: var(--accent); }
+
+    /* ===== DOWNLOADS ===== */
+    .downloads { background: var(--bg); padding: 100px 20px; }
+    .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+    .dl-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 40px 32px; text-align: center; position: relative; overflow: hidden;
+      transition: all .35s ease;
+    }
+    .dl-card:hover { border-color: var(--border-hover); transform: translateY(-8px); box-shadow: 0 0 60px rgba(0,212,170,.1); }
+    .dl-card.primary { border-color: rgba(0,212,170,.3); background: linear-gradient(180deg, rgba(0,212,170,.04), var(--card)); }
+    .dl-badge { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; padding: 4px 18px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+    .dl-icon { width: 64px; height: 64px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 16px auto 20px; }
+    .dl-card h3 { font-size: 20px; font-weight: 800; margin-bottom: 6px; color: var(--fg); }
+    .dl-size { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+    .dl-list { list-style: none; text-align: left; margin-bottom: 28px; }
+    .dl-list li { color: var(--muted); font-size: 14px; padding: 6px 0 6px 28px; position: relative; }
+    .dl-list li::before { content: '✓'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+    .dl-btn { width: 100%; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; letter-spacing: 1px; border: none; transition: all .3s; }
+    .dl-btn.primary { background: var(--accent); color: #000; }
+    .dl-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--accent-glow); }
+    .dl-btn.secondary { background: transparent; color: var(--accent); border: 1px solid rgba(0,212,170,.4); }
+    .dl-btn.secondary:hover { background: rgba(0,212,170,.1); transform: translateY(-2px); }
+    .dl-btn.ghost { background: var(--bg3); color: var(--fg); border: 1px solid var(--border); }
+    .dl-btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ===== NEWSLETTER ===== */
+    .newsletter { background: var(--bg2); padding: 80px 20px; }
+    .nl-box { max-width: 600px; margin: 0 auto; text-align: center; }
+    .nl-box h2 { font-size: clamp(28px, 4vw, 40px); font-weight: 900; margin-bottom: 12px; }
+    .nl-box p { color: var(--muted); margin-bottom: 28px; }
+    .nl-form { display: flex; gap: 10px; max-width: 460px; margin: 0 auto; }
+    .nl-input { flex: 1; padding: 14px 18px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--fg); font-size: 14px; outline: none; transition: border-color .2s; }
+    .nl-input:focus { border-color: var(--accent); }
+    .nl-btn { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; border: none; padding: 14px 24px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; transition: transform .2s; }
+    .nl-btn:hover { transform: translateY(-2px); }
+    .nl-note { color: var(--dim); font-size: 12px; margin-top: 12px; }
+    .nl-ok { display: none; color: #4ade80; font-size: 14px; margin-top: 12px; }
+    .nl-ok.show { display: block; }
+
+    /* ===== TESTIMONIALS ===== */
+    .testimonials { background: var(--bg2); padding: 100px 20px; }
+    .testi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+    .testi-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; transition: all .35s ease; position: relative;
+    }
+    .testi-card::before { content: ''; position: absolute; top: 0; left: 24px; width: 40px; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; }
+    .testi-card:hover { border-color: var(--border-hover); transform: translateY(-6px); box-shadow: 0 0 40px rgba(0,212,170,.1); }
+    .testi-card:hover::before { width: 80%; }
+    .testi-stars { color: #f59e0b; font-size: 18px; letter-spacing: 2px; margin-bottom: 16px; }
+    .testi-text { color: var(--muted); font-size: 14px; line-height: 1.7; margin-bottom: 20px; font-style: italic; }
+    .testi-author { display: flex; align-items: center; gap: 12px; }
+    .testi-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; color: #000; font-weight: 800; font-size: 14px; }
+    .testi-name { font-weight: 700; color: var(--fg); font-size: 14px; }
+    .testi-role { color: var(--dim); font-size: 12px; }
+
+    /* ===== COMMUNITY Q&A ===== */
+    .community-qa { background: var(--bg); padding: 100px 20px; }
+    .qa-form { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 48px; }
+    .qa-form-inner { display: flex; flex-direction: column; gap: 16px; }
+    .qa-input { padding: 14px 18px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; color: var(--fg); font-size: 14px; outline: none; transition: border-color .2s; }
+    .qa-input:focus { border-color: var(--accent); }
+    .qa-textarea { padding: 14px 18px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; color: var(--fg); font-size: 14px; outline: none; transition: border-color .2s; resize: vertical; font-family: inherit; }
+    .qa-textarea:focus { border-color: var(--accent); }
+    .qa-msg { margin-top: 12px; font-size: 14px; min-height: 20px; }
+    .qa-msg.success { color: #4ade80; }
+    .qa-msg.error { color: var(--red); }
+    .qa-list { display: flex; flex-direction: column; gap: 16px; }
+    .qa-item {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: all .3s;
+    }
+    .qa-item:hover { border-color: var(--border-hover); }
+    .qa-question { padding: 24px; border-bottom: 1px solid var(--border); }
+    .qa-question-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+    .qa-question-meta { display: flex; align-items: center; gap: 12px; }
+    .qa-question-author { font-weight: 700; color: var(--fg); }
+    .qa-question-date { color: var(--dim); font-size: 13px; }
+    .qa-question-text { color: var(--muted); font-size: 14.5px; line-height: 1.7; margin: 0; }
+    .qa-answer {
+      padding: 24px; background: var(--bg3); border-top: 1px solid var(--border);
+      display: none;
+    }
+    .qa-answer.visible { display: block; animation: fadeUp .3s ease; }
+    .qa-answer-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .qa-answer-badge { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+    .qa-answer-author { color: var(--accent); font-weight: 700; font-size: 13px; }
+    .qa-answer-text { color: var(--fg); font-size: 14.5px; line-height: 1.7; margin: 0; }
+    .qa-empty { text-align: center; padding: 60px 20px; color: var(--dim); }
+
+    /* ===== ADMIN Q&A PANEL ===== */
+    .admin-qa { background: var(--bg); padding: 100px 20px; border-top: 1px solid var(--border); }
+    .admin-qa-list { display: flex; flex-direction: column; gap: 16px; }
+    .admin-qa-item {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+    }
+    .admin-qa-item.pending { border-left: 4px solid var(--red); }
+    .admin-qa-item.answered { border-left: 4px solid var(--accent); }
+    .admin-qa-header { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: var(--bg3); }
+    .admin-qa-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .admin-qa-author { font-weight: 700; color: var(--fg); }
+    .admin-qa-email { color: var(--muted); font-size: 13px; font-family: monospace; }
+    .admin-qa-date { color: var(--dim); font-size: 13px; }
+    .admin-qa-status { padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+    .admin-qa-status.pending { background: rgba(239,68,68,.2); color: var(--red); }
+    .admin-qa-status.answered { background: rgba(0,212,170,.2); color: var(--accent); }
+    .admin-qa-question { padding: 20px 24px; color: var(--muted); font-size: 14.5px; line-height: 1.7; margin: 0; }
+    .admin-qa-actions { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; flex-wrap: wrap; background: var(--bg3); }
+    .admin-qa-textarea { flex: 1; min-width: 200px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--fg); font-size: 13px; resize: vertical; font-family: inherit; }
+    .admin-qa-textarea:focus { border-color: var(--accent); outline: none; }
+    .admin-btn { padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; transition: all .2s; }
+    .admin-btn.primary { background: var(--accent); color: #000; }
+    .admin-btn.primary:hover { box-shadow: 0 4px 20px var(--accent-glow); }
+    .admin-btn.secondary { background: transparent; color: var(--accent); border: 1px solid rgba(0,212,170,.4); }
+    .admin-btn.secondary:hover { background: rgba(0,212,170,.1); }
+    .admin-btn.danger { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,.4); }
+    .admin-btn.danger:hover { background: rgba(239,68,68,.1); }
+
+    /* ===== EULA ===== */
+    .eula { background: var(--bg); padding: 100px 20px; }
+    .eula-box { max-width: 800px; margin: 0 auto; }
+    .eula-sec { margin-bottom: 32px; }
+    .eula-sec h3 { color: var(--accent); font-size: 16px; margin-bottom: 10px; }
+    .eula-sec p, .eula-sec li { color: var(--muted); font-size: 14.5px; line-height: 1.8; }
+    .eula-sec ul { padding-left: 24px; }
+    .eula-sec li { margin-bottom: 6px; }
+    .eula-highlight { background: var(--card); border: 1px solid rgba(0,212,170,.3); border-radius: 12px; padding: 24px; margin-top: 24px; text-align: center; }
+    .eula-highlight p { color: var(--fg); font-weight: 700; font-size: 15px; line-height: 1.7; }
+    .eula-highlight small { color: var(--dim); font-size: 12px; display: block; margin-top: 8px; }
+
+    /* ===== FOOTER ===== */
+    footer { background: #050505; border-top: 1px solid #1a1a1a; padding: 60px 20px 30px; }
+    [data-theme="light"] footer { background: var(--bg2); border-top-color: var(--border); }
+    .footer-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 48px; }
+    .footer-brand { font-size: 20px; font-weight: 900; letter-spacing: -1px; margin-bottom: 12px; }
+    .footer-brand span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .footer-desc { color: var(--dim); font-size: 13px; line-height: 1.7; }
+    .footer-col h4 { color: var(--fg); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
+    .footer-col a { display: block; color: var(--muted); font-size: 14px; text-decoration: none; margin-bottom: 10px; transition: color .2s; }
+    .footer-col a:hover { color: var(--accent); }
+    .footer-bottom { max-width: 1200px; margin: 0 auto; border-top: 1px solid #1a1a1a; padding-top: 24px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+    [data-theme="light"] .footer-bottom { border-top-color: var(--border); }
+    .footer-bottom p { color: var(--dim); font-size: 13px; margin: 0; }
+
+    /* ===== EULA MODAL ===== */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); backdrop-filter: blur(6px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.active { display: flex; }
+    .modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 620px; max-height: 85vh; overflow-y: auto; animation: fadeUp .4s ease; }
+    .modal-head { padding: 24px 28px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-head h2 { font-size: 18px; margin: 0; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 28px; cursor: pointer; line-height: 1; transition: color .2s; }
+    .modal-close:hover { color: var(--red); }
+    .modal-body { padding: 24px 28px; }
+    .modal-body h3 { color: var(--accent); font-size: 14px; margin: 18px 0 8px; }
+    .modal-body h3:first-child { margin-top: 0; }
+    .modal-body p { color: var(--muted); font-size: 13.5px; line-height: 1.7; }
+    .modal-foot { padding: 0 28px 28px; }
+    .modal-accept { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #000; border: none; border-radius: 10px; font-weight: 800; font-size: 15px; cursor: pointer; letter-spacing: 1px; transition: transform .2s; }
+    .modal-accept:hover { transform: translateY(-2px); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .nav-links { display: none; }
+      .about-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .cl-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .hero h1 { letter-spacing: -2px; }
+      .hero-stats { gap: 24px; }
+      .about-stats { grid-template-columns: repeat(3, 1fr); }
+      .footer-grid { grid-template-columns: 1fr; }
+      .nl-form { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
 </head>
-<body class="bg-[#07070a] text-white antialiased">
-  <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+<body>
+  <div class="bg-grid"></div>
+  <div class="nebula nebula-1"></div>
+  <div class="nebula nebula-2"></div>
+  <div class="nebula nebula-3"></div>
+
+  <!-- NAV -->
+  <nav id="nav">
+    <div class="nav-inner">
+      <a href="#hero" class="nav-logo">HYDRA<span> LAUNCHER</span></a>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#about">Nosotros</a></li>
+        <li><a href="#changelog">Changelog</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="#testimonials">Reseñas</a></li>
+        <li><a href="#community-qa">Preguntas</a></li>
+        <li><a href="#downloads">Descargas</a></li>
+        <li><a href="#eula">Términos</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="theme-btn" id="themeBtn" title="Cambiar tema">◐</button>
+        <a href="#downloads" class="btn-nav">DESCARGAR</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-glow-2"></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <div class="dot"></div>
+        <span>Versión 1.0.0 — Disponible</span>
+      </div>
+      <h1>
+        <span class="white">HYDRA</span>
+        <span class="gradient">LAUNCHER</span>
+      </h1>
+      <div class="hero-divider"></div>
+      <p class="hero-sub">Vanilla · Fabric · Forge · Modpacks</p>
+      <p class="hero-desc">El launcher oficial de Hydra Studio & HyperHard Network. Diseñado para rendimiento, seguridad y la mejor experiencia de Minecraft Java Edition.</p>
+      <div class="hero-btns">
+        <button class="btn-primary" id="heroDownload">⬇ Descargar Instalador</button>
+        <button class="btn-secondary" id="heroPortable">📦 Versión Portable</button>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="val">1.0.0</div><div class="lbl">Versión Actual</div></div>
+        <div class="hero-stat"><div class="val">50+</div><div class="lbl">Versiones Soportadas</div></div>
+        <div class="hero-stat"><div class="val">3</div><div class="lbl">Cargadores</div></div>
+        <div class="hero-stat"><div class="val">0</div><div class="lbl">Anuncios</div></div>
+      </div>
+      <div class="hero-preview" style="position: relative; max-width: 900px; margin: 0 auto;">
+        <div class="preview-frame">
+          <div class="preview-header">
+            <div class="preview-dot red"></div>
+            <div class="preview-dot yellow"></div>
+            <div class="preview-dot green"></div>
+            <span class="preview-title">Hydra Launcher v1.0.0 — dashboard</span>
+          </div>
+          <div class="preview-content">
+            <div class="preview-panel">
+              <h4>📦 Versiones</h4>
+              <div class="mock-item"><div class="mock-dot"></div><span class="mock-text">fabric-loader-0.19.5-1.20.1</span><span class="mock-version">1.20.1</span></div>
+              <div class="mock-item"><div class="mock-dot"></div><span class="mock-text">forge-47.2.0</span><span class="mock-version">1.20.1</span></div>
+              <div class="mock-item"><div class="mock-dot"></div><span class="mock-text">Vanilla 1.20.4</span><span class="mock-version">Latest</span></div>
+            </div>
+            <div class="preview-panel">
+              <h4>🧱 Modpacks</h4>
+              <div class="mock-item"><div class="mock-dot"></div><span class="mock-text">HyperHard Survival Pack</span><span class="mock-version">47 mods</span></div>
+              <div class="mock-item"><div class="mock-dot"></div><span class="mock-text">Hydra PvP Optimized</span><span class="mock-version">23 mods</span></div>
+              <div class="mock-item"><div class="mock-dot"></div><span class="mock-text">Custom Client Pack</span><span class="mock-version">12 mods</span></div>
+            </div>
+            <div class="preview-panel">
+              <h4>🔐 Cuentas</h3>
+              <div class="mock-item"><div class="mock-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6"></div><span class="mock-text">scainetprr (Microsoft)</span><span class="mock-version">Premium</span></div>
+              <div class="mock-item"><div class="mock-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b"></div><span class="mock-text">PlayerOffline</span><span class="mock-version">Offline</span></div>
+              <div class="mock-item"><div class="mock-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6"></div><span class="mock-text">HydraBot</span><span class="mock-version">Bot</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-arrow">▼</div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="sec-divider"></div>
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— LO QUE NOS HACE ÚNICOS —</p>
+        <h2 class="sec-title">CARACTERÍSTICAS</h2>
+        <div class="sec-line"></div>
+      </div>
+      <div class="feat-grid">
+        <div class="feat-card reveal">
+          <div class="feat-icon">⚡</div>
+          <h3>Versiones Múltiples</h3>
+          <p>Soporte completo para Vanilla, Fabric y Forge. Instalación 1-click, snapshots, releases y versiones antiguas con reutilización inteligente.</p>
+        </div>
+        <div class="feat-card reveal">
+          <div class="feat-icon">🧱</div>
+          <h3>Modpacks</h3>
+          <p>Sistema de modpacks con escaneo recursivo de subcarpetas. Crear, editar, eliminar y aplicar con un clic. Guardado persistente.</p>
+        </div>
+        <div class="feat-card reveal">
+          <div class="feat-icon">🔐</div>
+          <h3>Autenticación Dual</h3>
+          <p>Microsoft OAuth2 con refresh automático y cuentas offline con UUID v3 determinístico. Compatible con servidores online-mode=false.</p>
+        </div>
+        <div class="feat-card reveal">
+          <div class="feat-icon">⚙️</div>
+          <h3>Optimización Total</h3>
+          <p>Detección automática de Java y RAM, JVM args optimizados con G1GC, string deduplication y flags de rendimiento avanzados.</p>
+        </div>
+        <div class="feat-card reveal">
+          <div class="feat-icon">🌐</div>
+          <h3>Quick-Join Servidores</h3>
+          <p>Conexión directa con ping en tiempo real, servidores preconfigurados de HyperHard y estado online/offline en vivo.</p>
+        </div>
+        <div class="feat-card reveal">
+          <div class="feat-icon">📦</div>
+          <h3>Auto-Actualizador</h3>
+          <p>Actualizaciones automáticas desde GitHub Releases. Descarga silenciosa, verificación SHA512 e instalación al cerrar.</p>
+        </div>
+      </div>
+    </div>
+    <div class="sec-divider-bottom"></div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="about" id="about">
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— DETRÁS DEL PROYECTO —</p>
+        <h2 class="sec-title">POR QUÉ <span class="grad">HYDRA</span></h2>
+        <div class="sec-line"></div>
+      </div>
+      <div class="about-grid">
+        <div class="about-text reveal">
+          <p>Hydra Launcher nace de la necesidad de tener un launcher que entienda a la comunidad. No somos una gran corporación — somos <strong>Hydra Studio</strong>, un equipo apasionado que juega Minecraft todos los días.</p>
+          <p>Cada decisión de diseño, cada optimización y cada característica está pensada para darte la mejor experiencia posible: <strong>sin bloatware, sin telemetría invasiva, sin anuncios</strong>.</p>
+          <p>Cuando decimos "Corta una cabeza, nacen dos", no es solo un lema — es nuestra filosofía de resiliencia y mejora continua.</p>
+          <div class="about-stats">
+            <div class="stat-box"><div class="num">1.0.0</div><div class="lbl">Versión</div></div>
+            <div class="stat-box"><div class="num">50+</div><div class="lbl">Versiones</div></div>
+            <div class="stat-box"><div class="num">100%</div><div class="lbl">Gratis</div></div>
+          </div>
+        </div>
+        <div class="about-visual reveal">
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="hg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#00d4aa"/>
+                <stop offset="100%" style="stop-color:#9b59b6"/>
+              </linearGradient>
+            </defs>
+            <polygon points="50 8 62.5 35 90 35 67.5 52.5 75 80 50 65 25 80 32.5 52.5 10 35 37.5 35" fill="url(#hg)"/>
+            <circle cx="50" cy="50" r="16" fill="url(#hg)"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHANGELOG -->
+  <section class="changelog" id="changelog">
+    <div class="sec-divider"></div>
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— HISTORIAL DE VERSIONES —</p>
+        <h2 class="sec-title">CHANGELOG</h2>
+        <div class="sec-line"></div>
+      </div>
+      <div class="cl-grid">
+        <div class="cl-card reveal">
+          <div class="cl-head">
+            <span class="cl-version">v1.0.0</span>
+            <span class="cl-date">Octubre 2026</span>
+          </div>
+          <h3>Lanzamiento Inicial</h3>
+          <ul class="cl-list">
+            <li class="added">Instalador profesional (.exe) con Inno Setup</li>
+            <li class="added">Versión portable (.zip) sin instalación</li>
+            <li class="added">Auto-actualizador con GitHub Releases</li>
+            <li class="added">Soporte Vanilla, Fabric, Forge 1-click</li>
+            <li class="added">Autenticación Microsoft (OAuth2 + refresh)</li>
+            <li class="added">Cuentas offline con UUID v3 determinístico</li>
+            <li class="added">Sistema de modpacks completo</li>
+            <li class="added">Escaneo recursivo de mods en subcarpetas</li>
+            <li class="added">Quick-join servidores con ping en tiempo real</li>
+            <li class="added">Interfaz dark premium con glassmorphism</li>
+          </ul>
+        </div>
+        <div class="cl-card reveal">
+          <div class="cl-head">
+            <span class="cl-version">v0.9.0</span>
+            <span class="cl-date">Septiembre 2026</span>
+          </div>
+          <h3>Beta Pública</h3>
+          <ul class="cl-list">
+            <li class="added">Motor de lanzamiento minecraft-launcher-core</li>
+            <li class="added">Interfaz React + Tailwind + Vite</li>
+            <li class="added">Persistencia de configuración en .minecraft</li>
+            <li class="added">Gestión de cuentas múltiples</li>
+            <li class="fixed">Fix Fabric loader detection</li>
+            <li class="fixed">Fix Intel HD 4600 crash workaround</li>
+          </ul>
+        </div>
+        <div class="cl-card reveal">
+          <div class="cl-head">
+            <span class="cl-version">v0.5.0</span>
+            <span class="cl-date">Agosto 2026</span>
+          </div>
+          <h3>Alpha Interna</h3>
+          <ul class="cl-list">
+            <li class="added">Prototipo Electron + React</li>
+            <li class="added">Lanzamiento Vanilla básico</li>
+            <li class="added">Autenticación offline simple</li>
+            <li class="added">Detección de versiones locales</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="sec-divider-bottom"></div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="faq">
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— PREGUNTAS FRECUENTES —</p>
+        <h2 class="sec-title">FAQ</h2>
+        <div class="sec-line"></div>
+      </div>
+      <div class="faq-list">
+        <div class="faq-item reveal">
+          <div class="faq-q"><p>¿Es seguro usar Hydra Launcher?</p><span class="icon">+</span></div>
+          <div class="faq-a"><p>Sí. No recopilamos datos personales, no hay telemetría oculta y el código es auditable. Los tokens de Microsoft se guardan localmente cifrados y solo se usan para autenticación.</p></div>
+        </div>
+        <div class="faq-item reveal">
+          <div class="faq-q"><p>¿Puedo usar mi cuenta Microsoft premium?</p><span class="icon">+</span></div>
+          <div class="faq-a"><p>Sí. Usamos el flujo OAuth2 oficial con refresh token automático. Tu sesión se renueva sola y nunca guardamos tu contraseña.</p></div>
+        </div>
+        <div class="faq-item reveal">
+          <div class="faq-q"><p>¿Dónde se guardan mis mods y configuraciones?</p><span class="icon">+</span></div>
+          <div class="faq-a"><p>En tu carpeta nativa <code>%APPDATA%\.minecraft</code>. Mods en <code>mods/</code>, configuración en <code>hydra-config.json</code>, cuentas en <code>hydra-accounts.json</code>. No creamos carpetas separadas.</p></div>
+        </div>
+        <div class="faq-item reveal">
+          <div class="faq-q"><p>¿Cómo actualizo el launcher?</p><span class="icon">+</span></div>
+          <div class="faq-a"><p>El auto-updater verifica actualizaciones al iniciar, descarga en segundo plano y la instala al cerrar. También puedes forzar la comprobación desde Ajustes → Actualizaciones.</p></div>
+        </div>
+        <div class="faq-item reveal">
+          <div class="faq-q"><p>Intel HD 4600 crashea (ig75icd64.dll), ¿qué hago?</p><span class="icon">+</span></div>
+          <div class="faq-a"><p>Es un problema conocido de drivers Intel, no del launcher. Prueba: actualizar drivers de Intel, usar <code>--enable-native-access=ALL-UNNAMED</code> en JVM args, o asignar más RAM. El launcher ya incluye este flag.</p></div>
+        </div>
+        <div class="faq-item reveal">
+          <div class="faq-q"><p>¿Puedo redistribuir el instalador en mi web?</p><span class="icon">+</span></div>
+          <div class="faq-a"><p><strong>No.</strong> Hydra Launcher es propiedad intelectual de Hydra Studio. Queda prohibida su redistribución, modificación e ingeniería inversa. Consulta los <a href="#eula">Términos y Condiciones</a>.</p></div>
+        </div>
+        <div class="faq-item reveal">
+          <div class="faq-q"><p>¿Cómo reporto un bug?</p><span class="icon">+</span></div>
+          <div class="faq-a"><p>Únete a nuestro <a href="https://discord.gg/qyyREajJgC" target="_blank">Discord</a> o abre un issue en <a href="https://github.com/scainetprr/Hydra-Launcher-Updater/issues" target="_blank">GitHub</a>. Incluye logs, versión del launcher y pasos para reproducir.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="testimonials" id="testimonials">
+    <div class="sec-divider"></div>
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— LO QUE DICE LA COMUNIDAD —</p>
+        <h2 class="sec-title">RESEÑAS</h2>
+        <div class="sec-line"></div>
+        <p class="sec-sub">Opiniones reales de jugadores y administradores que usan Hydra Launcher.</p>
+      </div>
+      <div class="testi-grid" id="testiGrid">
+        <div class="testi-card reveal">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"El mejor launcher que he probado. La instalación de Fabric es instantánea y no tuve que configurar nada. Los modpacks funcionan perfecto."</p>
+          <div class="testi-author">
+            <div class="testi-avatar">SC</div>
+            <div>
+              <div class="testi-name">scainetprr</div>
+              <div class="testi-role">Fundador · Hydra Studio</div>
+            </div>
+          </div>
+        </div>
+        <div class="testi-card reveal">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"Finalmente un launcher que usa la carpeta .minecraft nativa. Nada de carpetas duplicadas, mis mods y mundos están donde siempre."</p>
+          <div class="testi-author">
+            <div class="testi-avatar">HM</div>
+            <div>
+              <div class="testi-name">HadesAgogo</div>
+              <div class="testi-role">Dev · HyperHard Network</div>
+            </div>
+          </div>
+        </div>
+        <div class="testi-card reveal">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"El auto-actualizador es magia pura. Cierro el launcher, abro y ya está actualizado. Sin diálogos molestos, sin esperas."</p>
+          <div class="testi-author">
+            <div class="testi-avatar">NM</div>
+            <div>
+              <div class="testi-name">Nelmo1226</div>
+              <div class="testi-role">Builder & CEO</div>
+            </div>
+          </div>
+        </div>
+        <div class="testi-card reveal">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"Las cuentas offline con UUID determinístico son un game changer para mi servidor cracked. Los jugadores entran sin problemas."</p>
+          <div class="testi-author">
+            <div class="testi-avatar">JG</div>
+            <div>
+              <div class="testi-name">JuanGamer_23</div>
+              <div class="testi-role">Admin · Servidor Privado</div>
+            </div>
+          </div>
+        </div>
+        <div class="testi-card reveal">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"Interfaz oscura hermosa, nada de bloatware. El quick-join a servidores con ping en vivo me ahorra mucho tiempo."</p>
+          <div class="testi-author">
+            <div class="testi-avatar">MK</div>
+            <div>
+              <div class="testi-name">MinecraftKing</div>
+              <div class="testi-role">Jugador · Survival</div>
+            </div>
+          </div>
+        </div>
+        <div class="testi-card reveal">
+          <div class="testi-stars">★★★★☆</div>
+          <p class="testi-text">"Buen launcher, le falta soporte para Quilt pero el equipo responde rápido en Discord. Confío en que lo añadirán."</p>
+          <div class="testi-author">
+            <div class="testi-avatar">QM</div>
+            <div>
+              <div class="testi-name">QuiltFan</div>
+              <div class="testi-role">Modder</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 32px;">
+        <a href="https://github.com/scainetprr/Hydra-Launcher-Updater/issues" target="_blank" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">Ver más en GitHub →</a>
+      </div>
+    </div>
+    <div class="sec-divider-bottom"></div>
+  </section>
+
+  <!-- COMMUNITY Q&A -->
+  <section class="community-qa" id="community-qa">
+    <div class="sec-divider"></div>
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— PREGUNTA A LA COMUNIDAD —</p>
+        <h2 class="sec-title">PREGUNTAS Y RESPUESTAS</h2>
+        <div class="sec-line"></div>
+        <p class="sec-sub">¿Tienes dudas? Pregunta aquí. La comunidad y el equipo responden. <span id="qaAuthStatus" style="color: var(--accent);"></span></p>
+      </div>
+      <div class="qa-form reveal" id="qaFormWrap">
+        <h3 style="font-size: 18px; margin-bottom: 16px; color: var(--fg);">Hacer una pregunta</h3>
+        <form id="qaForm" class="qa-form-inner">
+          <input type="text" id="qaName" class="qa-input" placeholder="Tu nombre" required maxlength="30">
+          <input type="email" id="qaEmail" class="qa-input" placeholder="Email (para notificarte la respuesta)" required>
+          <textarea id="qaQuestion" class="qa-textarea" placeholder="Tu pregunta sobre Hydra Launcher..." required maxlength="500" rows="4"></textarea>
+          <button type="submit" class="btn-primary" style="width: 100%;">Enviar Pregunta</button>
+        </form>
+        <p id="qaFormMsg" class="qa-msg"></p>
+      </div>
+      <div class="qa-list" id="qaList">
+        <!-- Preguntas cargadas dinámicamente -->
+      </div>
+    </div>
+    <div class="sec-divider-bottom"></div>
+  </section>
+
+  <!-- ADMIN Q&A PANEL (hidden, solo para admin) -->
+  <section class="admin-qa" id="adminQA" style="display: none;">
+    <div class="sec-divider"></div>
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— PANEL DE ADMINISTRACIÓN —</p>
+        <h2 class="sec-title">GESTIÓN DE PREGUNTAS</h2>
+        <div class="sec-line"></div>
+      </div>
+      <div class="admin-qa-list" id="adminQAList"></div>
+    </div>
+    <div class="sec-divider-bottom"></div>
+  </section>
+
+  <!-- DOWNLOADS -->
+  <section class="downloads" id="downloads">
+    <div class="sec-divider"></div>
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— ELIGE TU VERSIÓN —</p>
+        <h2 class="sec-title">DESCARGAS</h2>
+        <div class="sec-line"></div>
+        <p class="sec-sub">Instalador completo o versión portable. Ambos con auto-updater integrado.</p>
+      </div>
+      <div class="dl-grid">
+        <div class="dl-card primary reveal">
+          <div class="dl-badge">Recomendado</div>
+          <div class="dl-icon">💿</div>
+          <h3>Instalador Windows</h3>
+          <div class="dl-size">~75 MB · .exe</div>
+          <ul class="dl-list">
+            <li>Instalación guiada con wizard</li>
+            <li>Accesos directos (Escritorio, Inicio)</li>
+            <li>Desinstalador en Apps de Windows</li>
+            <li>Actualizaciones automáticas integradas</li>
+          </ul>
+          <button class="dl-btn primary" id="dlExe">Descargar Instalador</button>
+        </div>
+        <div class="dl-card reveal">
+          <div class="dl-icon">📦</div>
+          <h3>Versión Portable</h3>
+          <div class="dl-size">~113 MB · .zip</div>
+          <ul class="dl-list">
+            <li>Sin instalación, ejecuta y juega</li>
+            <li>Ideal para USB o almacenamiento externo</li>
+            <li>Sin registro de Windows</li>
+            <li>Mismo auto-updater integrado</li>
+          </ul>
+          <button class="dl-btn secondary" id="dlZip">Descargar Portable</button>
+        </div>
+        <div class="dl-card reveal">
+          <div class="dl-icon">🔧</div>
+          <h3>Código Fuente</h3>
+          <div class="dl-size">Repositorio GitHub</div>
+          <ul class="dl-list">
+            <li>Ver Issues y Pull Requests</li>
+            <li>Contribuir con mejoras</li>
+            <li>Compilar tu propia versión</li>
+            <li>Transparencia total</li>
+          </ul>
+          <button class="dl-btn ghost" id="dlSrc">Ver en GitHub</button>
+        </div>
+      </div>
+    </div>
+    <div class="sec-divider-bottom"></div>
+  </section>
+
+  <!-- NEWSLETTER -->
+  <section class="newsletter">
+    <div class="nl-box reveal">
+      <h2>Mantente Actualizado</h2>
+      <p>Recibe noticias, actualizaciones y novedades directamente en tu email.</p>
+      <form class="nl-form" id="nlForm">
+        <input type="email" class="nl-input" placeholder="tu@email.com" required aria-label="Email">
+        <button type="submit" class="nl-btn">Suscribirse</button>
+      </form>
+      <div class="nl-note">Sin spam. Solo actualizaciones importantes.</div>
+      <div class="nl-ok" id="nlOk">¡Gracias por suscribirte!</div>
+    </div>
+  </section>
+
+  <!-- EULA -->
+  <section class="eula" id="eula">
+    <div class="sec-divider"></div>
+    <div class="container">
+      <div class="sec-header reveal">
+        <p class="sec-kicker">— LECTURA OBLIGATORIA —</p>
+        <h2 class="sec-title">TÉRMINOS Y <span class="grad">CONDICIONES</span></h2>
+        <div class="sec-line"></div>
+      </div>
+      <div class="eula-box reveal">
+        <div class="eula-sec">
+          <h3>1. Aceptación de Términos</h3>
+          <p>Al descargar, instalar o usar Hydra Launcher, usted acepta estar sujeto a estos términos y condiciones. Si no está de acuerdo, no utilice el software.</p>
+        </div>
+        <div class="eula-sec">
+          <h3>2. Propiedad Intelectual</h3>
+          <p>Hydra Launcher y todo su contenido — código fuente, gráficos, documentación — son propiedad exclusiva de <strong style="color:var(--fg)">Hydra Studio</strong> y están protegidos por leyes de derechos de autor internacionales.</p>
+          <p>Minecraft Java Edition es una marca registrada de Mojang Studios. Este launcher no está afiliado ni endorsed por Mojang Studios.</p>
+        </div>
+        <div class="eula-sec">
+          <h3>3. Prohibición Total de Redistribución</h3>
+          <p>Queda estrictamente prohibida la redistribución, compartición o distribución de Hydra Studio sin autorización escrita previa. Esto incluye pero no se limita a:</p>
+          <ul>
+            <li>Subir el instalador (.exe) o ZIP portable a sitios web de terceros</li>
+            <li>Compartir enlaces de descarga en foros, redes sociales o plataformas públicas</li>
+            <li>Distribuir versiones modificadas del launcher</li>
+            <li>Extraer y redistribuir los recursos incluidos en el paquete</li>
+          </ul>
+          <p>El usuario puede usar el launcher para uso <strong style="color:var(--fg)">personal y no comercial en una sola máquina</strong>.</p>
+        </div>
+        <div class="eula-sec">
+          <h3>4. Modificaciones Prohibidas</h3>
+          <p>No está permitido reverse engineering, descompilación, desensamblaje o cualquier forma de extracción del código fuente. El usuario no debe modificar, adaptar o crear trabajos derivados basados en el software.</p>
+          <p>Cualquier intento de modificar, alterar o hackear el launcher resultará en la terminación inmediata del derecho de uso y posible acción legal.</p>
+        </div>
+        <div class="eula-sec">
+          <h3>5. Modificaciones al Software</h3>
+          <p>Hydra Studio se reserva el derecho de actualizar, modificar o discontinuar Hydra Launcher en cualquier momento sin previo aviso. Las actualizaciones pueden ser obligatorias para continuar usando el software.</p>
+        </div>
+        <div class="eula-sec">
+          <h3>6. Limitación de Responsabilidad</h3>
+          <p>Hydra Studio no será responsable por daños de cualquier tipo derivados del uso del software, incluyendo pérdida de datos, daño al sistema o fallos en servidores. El uso es bajo su propio riesgo.</p>
+        </div>
+        <div class="eula-sec">
+          <h3>7. Cancelación de Cuenta</h3>
+          <p>Hydra Studio se reserva el derecho de cancelar o suspender el acceso a cuentas que violen estos términos, involucren actividad fraudulenta o representen un riesgo de seguridad.</p>
+        </div>
+        <div class="eula-highlight">
+          <p>© 2026 Hydra Studio — Todos los derechos reservados<br>USO PERSONAL SOLO · SIN REDISTRIBUCIÓN · SIN MODIFICACIÓN</p>
+          <small>Hydra Studio & HyperHard Network · Proyecto de mini empresa independiente</small>
+        </div>
+      </div>
+    </div>
+    <div class="sec-divider-bottom"></div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">HYDRA<span> LAUNCHER</span></div>
+        <p class="footer-desc">Launcher oficial de Hydra Studio & HyperHard Network. Versión 1.0.0 — Premium, optimizado y seguro para Minecraft Java Edition.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Producto</h4>
+        <a href="#features">Features</a>
+        <a href="#downloads">Descargas</a>
+        <a href="#changelog">Changelog</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="footer-col">
+        <h4>Comunidad</h4>
+        <a href="https://discord.gg/qyyREajJgC" target="_blank">Discord</a>
+        <a href="https://github.com/scainetprr/Hydra-Launcher-Updater" target="_blank">GitHub</a>
+        <a href="https://www.youtube.com/@HyperHardNetwork" target="_blank">YouTube</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#eula">Términos y Condiciones</a>
+        <a href="#eula">Prohibición de Redistribución</a>
+        <a href="https://hydrastudio.net" target="_blank">Hydra Studio</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Hydra Studio. Todos los derechos reservados.</p>
+      <p>"Corta una cabeza, nacen dos."</p>
+    </div>
+  </footer>
+
+  <!-- EULA MODAL -->
+  <div class="modal-overlay" id="eulaModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2>⚠ Términos de Hydra Launcher</h2>
+        <button class="modal-close" id="modalClose">×</button>
+      </div>
+      <div class="modal-body">
+        <h3>1. Aceptación</h3>
+        <p>Al usar Hydra Launcher aceptas estos términos. Si no estás de acuerdo, no utilices el software.</p>
+        <h3>2. Propiedad Intelectual</h3>
+        <p>Hydra Launcher es propiedad exclusiva de Hydra Studio. Prohibida su redistribución y modificación.</p>
+        <h3>3. Prohibición de Redistribución</h3>
+        <p>No puedes subir el instalador a terceros, compartirlo en foros/redes, distribuir versiones modificadas ni extraer recursos. Uso personal en una sola máquina.</p>
+        <h3>4. Modificaciones Prohibidas</h3>
+        <p>Prohibido reverse engineering, descompilación o ingeniería inversa. Cualquier intento termina tu derecho de uso.</p>
+        <h3>5. Limitación de Responsabilidad</h3>
+        <p>Hydra Studio no se hace responsable por daños derivados del uso. El uso es bajo tu propio riesgo.</p>
+        <h3>6. Proyecto de Hydra Studio</h3>
+        <p>Hydra Launcher es un proyecto de mini empresa independiente: Hydra Studio & HyperHard Network. © 2026 Todos los derechos reservados.</p>
+      </div>
+      <div class="modal-foot">
+        <button class="modal-accept" id="modalAccept">Acepto y Continuo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Particles
+    (function(){
+      const colors = ['#00d4aa','#9b59b6'];
+      for(let i=0;i<20;i++){
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random()*100+'vw';
+        p.style.top = Math.random()*100+'vh';
+        p.style.width = p.style.height = (i%3===0?3:2)+'px';
+        p.style.background = colors[i%2];
+        p.style.boxShadow = `0 0 6px ${colors[i%2]}`;
+        p.style.animation = `float ${3+(i%4)}s ease-in-out ${(i*0.3)%3}s infinite`;
+        document.body.appendChild(p);
+      }
+    })();
+
+    // Nav scroll
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // Theme toggle
+    const themeBtn = document.getElementById('themeBtn');
+    const html = document.documentElement;
+    const saved = localStorage.getItem('theme') || 'dark';
+    html.setAttribute('data-theme', saved);
+    themeBtn.textContent = saved === 'light' ? '◑' : '◐';
+    themeBtn.addEventListener('click', () => {
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      themeBtn.textContent = next === 'light' ? '◑' : '◐';
+    });
+
+    // Reveal on scroll
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // FAQ accordion
+    document.querySelectorAll('.faq-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const was = item.classList.contains('active');
+        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+        if(!was) item.classList.add('active');
+      });
+    });
+
+    // Download buttons
+    const REPO = 'https://github.com/scainetprr/Hydra-Launcher-Updater';
+    const dl = (url) => window.open(url, '_blank');
+    document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.0.0.exe'));
+    document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.0.0.zip'));
+    document.getElementById('dlExe').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.0.0.exe'));
+    document.getElementById('dlZip').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.0.0.zip'));
+    document.getElementById('dlSrc').addEventListener('click', () => dl(REPO));
+
+    // Newsletter
+    document.getElementById('nlForm').addEventListener('submit', e => {
+      e.preventDefault();
+      e.target.reset();
+      document.getElementById('nlOk').classList.add('show');
+      setTimeout(() => document.getElementById('nlOk').classList.remove('show'), 5000);
+    });
+
+    // EULA Modal
+    const modal = document.getElementById('eulaModal');
+    if(localStorage.getItem('eula_accepted') !== '1') {
+      setTimeout(() => modal.classList.add('active'), 800);
+    }
+    document.getElementById('modalClose').addEventListener('click', () => modal.classList.remove('active'));
+    document.getElementById('modalAccept').addEventListener('click', () => {
+      modal.classList.remove('active');
+      localStorage.setItem('eula_accepted', '1');
+    });
+
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const t = document.querySelector(a.getAttribute('href'));
+        if(t) t.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+
+    // Scroll spy
+    const sections = document.querySelectorAll('section[id]');
+    const links = document.querySelectorAll('.nav-links a');
+    const spy = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if(e.isIntersecting) {
+          links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#'+e.target.id));
+        }
+      });
+    }, { threshold: 0.3 });
+    sections.forEach(s => spy.observe(s));
+
+    // Mobile menu
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'menu-btn';
+    menuBtn.innerHTML = '<span></span>';
+    menuBtn.setAttribute('aria-label', 'Menú');
+    document.querySelector('.nav-actions').prepend(menuBtn);
+    menuBtn.addEventListener('click', () => {
+      menuBtn.classList.toggle('active');
+      document.querySelector('.nav-links').classList.toggle('open');
+    });
+
+    // Q&A System
+    const QA_STORAGE_KEY = 'hydra_qa_questions';
+    const ADMIN_UID = 'scainetprr'; // GitHub username for admin
+
+    function getQuestions() {
+      try {
+        return JSON.parse(localStorage.getItem(QA_STORAGE_KEY) || '[]');
+      } catch { return []; }
+    }
+
+    function saveQuestions(questions) {
+      localStorage.setItem(QA_STORAGE_KEY, JSON.stringify(questions));
+    }
+
+    function formatDate(ts) {
+      return new Date(ts).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getInitials(name) {
+      return name.trim().split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase();
+    }
+
+    function renderQAList() {
+      const list = document.getElementById('qaList');
+      const questions = getQuestions().sort((a,b) => b.timestamp - a.timestamp);
+      if (questions.length === 0) {
+        list.innerHTML = '<div class="qa-empty"><p>No hay preguntas aún. ¡Sé el primero en preguntar!</p></div>';
+        return;
+      }
+      list.innerHTML = questions.map((q, i) => `
+        <div class="qa-item" data-index="${i}">
+          <div class="qa-question">
+            <div class="qa-question-header">
+              <div class="qa-question-meta">
+                <span class="qa-question-author">${q.name} ${q.isAdmin ? '<span style="color:var(--accent);font-size:11px;margin-left:8px;">👑 STAFF</span>' : ''}</span>
+                <span class="qa-question-date">${formatDate(q.timestamp)}</span>
+              </div>
+            </div>
+            <p class="qa-question-text">${q.question}</p>
+          </div>
+          ${q.answer ? `
+          <div class="qa-answer visible">
+            <div class="qa-answer-header">
+              <span class="qa-answer-badge">RESPONDIDO</span>
+              <span class="qa-answer-author">${q.answeredBy || 'Staff'}</span>
+              <span class="qa-question-date">${formatDate(q.answeredAt)}</span>
+            </div>
+            <p class="qa-answer-text">${q.answer}</p>
+          </div>
+          ` : '<div class="qa-answer"><p class="qa-answer-text" style="color:var(--dim);font-style:italic;">Pendiente de respuesta...</p></div>'}
+        </div>
+      `).join('');
+    }
+
+    function renderAdminQA() {
+      const list = document.getElementById('adminQAList');
+      const questions = getQuestions().sort((a,b) => b.timestamp - a.timestamp);
+      if (questions.length === 0) {
+        list.innerHTML = '<div class="qa-empty"><p>No hay preguntas pendientes.</p></div>';
+        return;
+      }
+      list.innerHTML = questions.map((q, i) => `
+        <div class="admin-qa-item ${q.answer ? 'answered' : 'pending'}" data-index="${i}">
+          <div class="admin-qa-header">
+            <div class="admin-qa-meta">
+              <span class="admin-qa-author">${q.name}</span>
+              <span class="admin-qa-email">${q.email}</span>
+              <span class="admin-qa-date">${formatDate(q.timestamp)}</span>
+              <span class="admin-qa-status ${q.answer ? 'answered' : 'pending'}">${q.answer ? 'RESPONDIDA' : 'PENDIENTE'}</span>
+            </div>
+          </div>
+          <p class="admin-qa-question">${q.question}</p>
+          <div class="admin-qa-actions">
+            ${q.answer ? `
+              <textarea class="admin-qa-textarea" data-index="${i}" placeholder="Editar respuesta..." value="${q.answer}">${q.answer}</textarea>
+              <button class="admin-btn primary" onclick="updateAnswer(${i})">Actualizar</button>
+              <button class="admin-btn secondary" onclick="deleteQuestion(${i})">Eliminar</button>
+            ` : `
+              <textarea class="admin-qa-textarea" data-index="${i}" placeholder="Escribe tu respuesta aquí..."></textarea>
+              <button class="admin-btn primary" onclick="answerQuestion(${i})">Responder</button>
+              <button class="admin-btn danger" onclick="deleteQuestion(${i})">Eliminar</button>
+            `}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.answerQuestion = function(index) {
+      const questions = getQuestions();
+      const textarea = document.querySelector(`.admin-qa-textarea[data-index="${index}"]`);
+      const answer = textarea.value.trim();
+      if (!answer) return alert('Escribe una respuesta');
+      questions[index].answer = answer;
+      questions[index].answeredBy = 'Hydra Staff';
+      questions[index].answeredAt = Date.now();
+      saveQuestions(questions);
+      renderQAList();
+      renderAdminQA();
+      showMsg('Pregunta respondida ✓', 'success');
+    };
+
+    window.updateAnswer = function(index) {
+      const questions = getQuestions();
+      const textarea = document.querySelector(`.admin-qa-textarea[data-index="${index}"]`);
+      const answer = textarea.value.trim();
+      if (!answer) return alert('Escribe una respuesta');
+      questions[index].answer = answer;
+      questions[index].answeredAt = Date.now();
+      saveQuestions(questions);
+      renderQAList();
+      renderAdminQA();
+      showMsg('Respuesta actualizada ✓', 'success');
+    };
+
+    window.deleteQuestion = function(index) {
+      if (!confirm('¿Eliminar esta pregunta permanentemente?')) return;
+      const questions = getQuestions();
+      questions.splice(index, 1);
+      saveQuestions(questions);
+      renderQAList();
+      renderAdminQA();
+      showMsg('Pregunta eliminada', 'success');
+    };
+
+    function showMsg(msg, type) {
+      const el = document.getElementById('qaFormMsg');
+      el.textContent = msg;
+      el.className = 'qa-msg ' + type;
+      setTimeout(() => { el.textContent = ''; el.className = 'qa-msg'; }, 4000);
+    }
+
+    // Public Q&A form
+    document.getElementById('qaForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const name = document.getElementById('qaName').value.trim();
+      const email = document.getElementById('qaEmail').value.trim();
+      const question = document.getElementById('qaQuestion').value.trim();
+      if (!name || !email || !question) return showMsg('Completa todos los campos', 'error');
+      const questions = getQuestions();
+      questions.unshift({
+        name, email, question,
+        timestamp: Date.now(),
+        isAdmin: email.includes('@hydrastudio') || name.toLowerCase().includes('scainetprr')
+      });
+      saveQuestions(questions);
+      e.target.reset();
+      renderQAList();
+      renderAdminQA();
+      showMsg('Pregunta enviada. Te notificaremos por email cuando la respondan.', 'success');
+    });
+
+    // Admin panel detection (simple: check if user is admin via localStorage flag)
+    function checkAdmin() {
+      // In real app, verify via auth. Here: admin if email contains admin domain or manual flag
+      const isAdmin = localStorage.getItem('is_hydra_admin') === 'true';
+      const adminSection = document.getElementById('adminQA');
+      if (isAdmin) {
+        adminSection.style.display = 'block';
+        renderAdminQA();
+      }
+      document.getElementById('qaAuthStatus').textContent = isAdmin ? ' 👑 Modo Admin activo' : '';
+      // Secret: triple-click logo to toggle admin
+      let logoClicks = 0, logoTimer;
+      document.querySelector('.nav-logo').addEventListener('click', () => {
+        logoClicks++;
+        clearTimeout(logoTimer);
+        logoTimer = setTimeout(() => logoClicks = 0, 1000);
+        if (logoClicks >= 3) {
+          const newVal = !isAdmin;
+          localStorage.setItem('is_hydra_admin', newVal);
+          location.reload();
+        }
+      });
+    }
+
+    // Initial renders
+    renderQAList();
+    checkAdmin();
+
+    // Expose for console debugging
+    window.hydraQA = { getQuestions, saveQuestions, renderQAList, renderAdminQA };
+
+  </script>
 </body>
 </html>
