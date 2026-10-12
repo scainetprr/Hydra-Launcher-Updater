@@ -67,7 +67,7 @@ export default function Versions(){
       return ids.map(id=>{
         const m = manifestById[id]
         const fv = (installedVersions||[]).find((x:any)=>x.id===id)
-        return { id, type: m?.type || fv?.type || 'release', releaseTime: m?.releaseTime || '', url: m?.url || (fv?.valid? 'instalada en disco' : '') }
+        return { id, type: m?.type || fv?.type || 'release', releaseTime: m?.releaseTime || '', url: m?.url || (fv?.valid? 'instalada en disco' : ''), modpack: fv?.modpack || null }
       }).sort((a:any,b:any)=> (b.releaseTime||'').localeCompare(a.releaseTime||''))
         .filter(match)
     }
@@ -148,9 +148,10 @@ export default function Versions(){
                 <div className="flex-1 min-w-0">
                   <div className="font-bold leading-none flex items-center gap-1.5 flex-wrap">{v.id}
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black flex items-center gap-1 ${b.cls}`}>{b.icon} {b.label}</span>
+                    {v.modpack && <span title={v.modpack} className="text-[10px] px-1.5 py-0.5 rounded-full font-black bg-violet-500/25 text-violet-300">🧩 MODPACK</span>}
                     {selectedVersion===v.id && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white text-black font-black">SELECCIONADA</span>}
                   </div>
-                  <div className="text-xs text-white/50">{v.type}{v.releaseTime?` • ${new Date(v.releaseTime).toLocaleDateString()}`:''} {isInst && <span className="text-emerald-400">• instalada</span>}</div>
+                  <div className="text-xs text-white/50">{v.modpack || v.type}{v.releaseTime?` • ${new Date(v.releaseTime).toLocaleDateString()}`:''} {isInst && <span className="text-emerald-400">• instalada</span>}</div>
                 </div>
                 {isInst && (
                   <span onClick={(e)=>delVersion(v.id, e)} title="Eliminar versión del disco"

@@ -587,7 +587,7 @@
     <div class="hero-content">
       <div class="hero-badge">
         <div class="dot"></div>
-        <span>Versión 1.3.1 — Disponible</span>
+        <span>Versión 1.3.2 — Disponible</span>
       </div>
       <img src="hydra-logo.png" alt="Hydra Launcher" style="width:96px;height:96px;margin:0 auto 16px;border-radius:24px;display:block;box-shadow:0 0 70px rgba(124,58,237,.55);">
       <h1>
@@ -602,7 +602,7 @@
         <button class="btn-secondary" id="heroPortable">📦 Versión Portable</button>
       </div>
       <div class="hero-stats">
-        <div class="hero-stat"><div class="val">1.3.1</div><div class="lbl">Versión Actual</div></div>
+        <div class="hero-stat"><div class="val">1.3.2</div><div class="lbl">Versión Actual</div></div>
         <div class="hero-stat"><div class="val">50+</div><div class="lbl">Versiones Soportadas</div></div>
         <div class="hero-stat"><div class="val">3</div><div class="lbl">Cargadores</div></div>
         <div class="hero-stat"><div class="val">0</div><div class="lbl">Anuncios</div></div>
@@ -613,7 +613,7 @@
             <div class="preview-dot red"></div>
             <div class="preview-dot yellow"></div>
             <div class="preview-dot green"></div>
-            <span class="preview-title">Hydra Launcher v1.3.1 — dashboard</span>
+            <span class="preview-title">Hydra Launcher v1.3.2 — dashboard</span>
           </div>
           <div class="preview-content">
             <div class="preview-panel">
@@ -700,7 +700,7 @@
           <p>Cada decisión de diseño, cada optimización y cada característica está pensada para darte la mejor experiencia posible: <strong>sin bloatware, sin telemetría invasiva, sin anuncios</strong>.</p>
           <p>Cuando decimos "Corta una cabeza, nacen dos", no es solo un lema — es nuestra filosofía de resiliencia y mejora continua.</p>
           <div class="about-stats">
-            <div class="stat-box"><div class="num">1.3.1</div><div class="lbl">Versión</div></div>
+            <div class="stat-box"><div class="num">1.3.2</div><div class="lbl">Versión</div></div>
             <div class="stat-box"><div class="num">50+</div><div class="lbl">Versiones</div></div>
             <div class="stat-box"><div class="num">100%</div><div class="lbl">Gratis</div></div>
           </div>
@@ -731,6 +731,19 @@
         <div class="sec-line"></div>
       </div>
       <div class="cl-grid">
+        <div class="cl-card reveal">
+          <div class="cl-head">
+            <span class="cl-version">v1.3.2</span>
+            <span class="cl-date">Octubre 2026</span>
+          </div>
+          <h3>Modpacks y Comunidad Real</h3>
+          <ul class="cl-list">
+            <li class="added">Modpacks instalados como versiones propias: aparecen en Versiones → Instaladas con badge 🧩 y se lanzan con su loader y sus mods</li>
+            <li class="added">Login real con Google y GitHub en la web oficial (reseñas y preguntas) con tu nombre de usuario editable</li>
+            <li class="fixed">Icono del menú Inicio corregido: el logo transparente de Hydra ya no aparece en un círculo morado</li>
+            <li class="fixed">Eliminados los accesos "(Anclado)" y "(Barra tareas)" que ensuciaban el menú Inicio</li>
+          </ul>
+        </div>
         <div class="cl-card reveal">
           <div class="cl-head">
             <span class="cl-version">v1.3.1</span>
@@ -906,7 +919,7 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div>
               <label style="color: var(--muted); font-size: 12px; display: block; margin-bottom: 6px;">Tu nombre</label>
-              <input type="text" id="revName" class="qa-input" placeholder="Ej: L3xz" required maxlength="30" style="width:100%;">
+              <input type="text" id="revName" class="qa-input" placeholder="Ej: scainet" required maxlength="30" style="width:100%;">
             </div>
             <div>
               <label style="color: var(--muted); font-size: 12px; display: block; margin-bottom: 6px;">Servidor</label>
@@ -1159,7 +1172,7 @@
     <div class="footer-grid">
       <div>
         <div class="footer-brand">HYDRA<span> LAUNCHER</span></div>
-        <p class="footer-desc">Launcher oficial de Hydra Studio & HyperHard Network. Versión 1.3.1 — Premium, optimizado y seguro para Minecraft Java Edition.</p>
+        <p class="footer-desc">Launcher oficial de Hydra Studio & HyperHard Network. Versión 1.3.2 — Premium, optimizado y seguro para Minecraft Java Edition.</p>
       </div>
       <div class="footer-col">
         <h4>Producto</h4>
@@ -1272,10 +1285,10 @@
     // Download buttons
     const REPO = 'https://github.com/scainetprr/hydra-launcher-web';
     const dl = (url) => window.open(url, '_blank');
-    document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.1.exe'));
-    document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.1.zip'));
-    document.getElementById('dlExe').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.1.exe'));
-    document.getElementById('dlZip').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.1.zip'));
+    document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.2.exe'));
+    document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.2.zip'));
+    document.getElementById('dlExe').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.2.exe'));
+    document.getElementById('dlZip').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.2.zip'));
     document.getElementById('dlSrc').addEventListener('click', () => dl(REPO));
 
     // Newsletter
@@ -1673,18 +1686,95 @@ menuBtn.addEventListener('click', () => {
       renderReviews(); renderAdminReviews(); renderQA(); renderAdminQA();
     }
 
-    // Simulated auth functions
+    // ===== AUTH REAL (Google GIS + GitHub Device Flow) =====
+    // Configura tus client IDs:
+    //  - Google: https://console.cloud.google.com/apis/credentials → OAuth 2.0 Client ID (Web) →
+    //            autoriza el origen https://scainetprr.github.io (y tu dominio custom si aplica)
+    //  - GitHub: https://github.com/settings/developers → New OAuth App →
+    //            callback: https://scainetprr.github.io/ (se ignora en Device Flow) → copia el Client ID
+    const AUTH_CONFIG = {
+      googleClientId: 'PEGA_TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+      githubClientId: 'PEGA_TU_GITHUB_CLIENT_ID'
+    };
+    const authOutTpl = document.getElementById('navAuthOut').innerHTML;
+
+    function loadGis() {
+      return new Promise((res, rej) => {
+        if (window.google && window.google.accounts) return res();
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.onload = () => res();
+        s.onerror = () => rej(new Error('No se pudo cargar Google Sign-In'));
+        document.head.appendChild(s);
+      });
+    }
+
+    function handleGoogleCredential(cred) {
+      try {
+        const p = JSON.parse(atob(cred.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const u = { displayName: p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Usuario Google'), email: p.email || '', provider: 'Google', uid: 'google_' + (p.sub || '') };
+        refreshAuthUI(u);
+        window.hydraToast('✓ Sesión iniciada con Google (' + u.displayName + ')');
+      } catch (e) { window.hydraToast('✗ Error procesando credencial de Google'); }
+    }
+
+    async function authGoogle() {
+      if (AUTH_CONFIG.googleClientId.indexOf('PEGA_') === 0) {
+        window.hydraToast('⚠ Login de Google no configurado — añade GOOGLE_CLIENT_ID en index.html');
+        return;
+      }
+      try {
+        await loadGis();
+        const box = document.getElementById('navAuthOut');
+        box.innerHTML = '<p class="auth-title">Google</p><p class="auth-sub">Haz clic en el botón de Google para continuar:</p><div id="gsiBtn" style="display:flex;justify-content:center;padding:8px 0"></div>';
+        google.accounts.id.initialize({ client_id: AUTH_CONFIG.googleClientId, callback: handleGoogleCredential });
+        google.accounts.id.renderButton(document.getElementById('gsiBtn'), { theme: 'filled_black', size: 'large', width: 280, text: 'continue_with', shape: 'rectangular' });
+      } catch (e) { window.hydraToast('✗ ' + e.message); }
+    }
+
+    async function authGithub() {
+      if (AUTH_CONFIG.githubClientId.indexOf('PEGA_') === 0) {
+        window.hydraToast('⚠ Login de GitHub no configurado — añade GITHUB_CLIENT_ID en index.html');
+        return;
+      }
+      const box = document.getElementById('navAuthOut');
+      box.innerHTML = '<p class="auth-title">GitHub</p><p class="auth-sub">1. Abre <a href="https://github.com/login/device" target="_blank" rel="noopener" style="color:var(--accent)">github.com/login/device</a><br>2. Ingresa este código:</p><div id="ghCode" style="font-family:monospace;font-size:22px;letter-spacing:3px;background:#000;border:1px solid #333;border-radius:10px;padding:10px;text-align:center;margin:8px 0">····-····</div><p class="auth-sub" id="ghStatus">Esperando confirmación...</p>';
+      try {
+        const r = await fetch('https://github.com/login/device/code', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: 'client_id=' + encodeURIComponent(AUTH_CONFIG.githubClientId) + '&scope=read:user' });
+        const d = await r.json();
+        if (!d.device_code) throw new Error('GitHub no devolvió código (¿client_id válido?)');
+        document.getElementById('ghCode').textContent = d.user_code;
+        const started = Date.now();
+        while (Date.now() - started < 900000) {
+          await new Promise(res => setTimeout(res, (d.interval || 5) * 1000));
+          const pr = await fetch('https://github.com/login/oauth/access_token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: 'client_id=' + encodeURIComponent(AUTH_CONFIG.githubClientId) + '&device_code=' + encodeURIComponent(d.device_code) + '&grant_type=urn:ietf:params:oauth:grant-type:device_code' });
+          const pd = await pr.json();
+          if (pd.access_token) {
+            const ur = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + pd.access_token, Accept: 'application/vnd.github+json' } });
+            const g = await ur.json();
+            const u = { displayName: g.name || g.login || 'Usuario GitHub', email: g.email || ('@' + (g.login || 'github')), provider: 'GitHub', uid: 'github_' + (g.id || ''), avatar: g.avatar_url || '' };
+            refreshAuthUI(u);
+            window.hydraToast('✓ Sesión iniciada con GitHub (@' + g.login + ')');
+            return;
+          }
+          if (pd.error === 'authorization_pending') continue;
+          if (pd.error === 'slow_down') { await new Promise(res => setTimeout(res, 5000)); continue; }
+          throw new Error(pd.error_description || pd.error || 'Fallo de GitHub');
+        }
+        throw new Error('Tiempo agotado — vuelve a intentarlo');
+      } catch (e) {
+        const st = document.getElementById('ghStatus');
+        if (st) { st.textContent = '✗ ' + e.message; st.style.color = '#ff6b7a'; }
+        document.getElementById('navAuthOut').innerHTML = authOutTpl;
+      }
+    }
+
     window.authLogin = function(provider) {
-      const providers = {
-        google: { displayName: 'Usuario Google', email: 'usuario@gmail.com', provider: 'Google', uid: 'google_' + Date.now() },
-        github: { displayName: 'Usuario GitHub', email: 'usuario@github.com', provider: 'GitHub', uid: 'github_' + Date.now() }
-      };
-      const user = providers[provider];
-      if (!user) return;
-      refreshAuthUI(user);
-      window.hydraToast('✓ Sesión iniciada como ' + user.displayName);
+      if (provider === 'google') authGoogle();
+      else if (provider === 'github') authGithub();
     };
     window.authLogout = function() {
+      document.getElementById('navAuthOut').innerHTML = authOutTpl;
       refreshAuthUI(null);
       window.hydraToast('Sesión cerrada');
     };

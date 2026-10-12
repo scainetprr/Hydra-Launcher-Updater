@@ -2,6 +2,14 @@
   "updated": "2026-10-12",
   "posts": [
     {
+      "id": "v132",
+      "icon": "🧩",
+      "tag": "Launcher",
+      "date": "12/10/2026",
+      "title": "Hydra v1.3.2 — modpacks como versiones y login real",
+      "body": "Los modpacks ahora se instalan como versiones propias en Versiones → Instaladas (con sus mods y loader) y se lanzan directo. Web con login real de Google y GitHub, icono del menú Inicio corregido y desaparecen los accesos \"(Anclado)\"."
+    },
+    {
       "id": "v131",
       "icon": "⚡",
       "tag": "Launcher",

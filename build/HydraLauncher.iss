@@ -7,7 +7,7 @@
 ; ============================================================================
 
 #define MyAppName "Hydra Launcher"
-#define MyAppVersion "1.3.1"
+#define MyAppVersion "1.3.2"
 #define MyAppPublisher "Hydra Studio (scainetprr)"
 #define MyAppURL "https://discord.gg/qyyREajJgC"
 #define MyAppExeName "Hydra Launcher.exe"
@@ -65,8 +65,6 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Crear acceso directo en el Escritorio"; GroupDescription: "Iconos adicionales"
 Name: "startmenuicon"; Description: "Crear acceso directo en el Menú Inicio"; GroupDescription: "Iconos adicionales"
-Name: "pinstart"; Description: "Anclar a Inicio (Windows 10/11)"; GroupDescription: "Iconos adicionales"
-Name: "pintaskbar"; Description: "Anclar a barra de tareas"; GroupDescription: "Iconos adicionales"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
@@ -79,11 +77,16 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{a
 Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"; WorkingDir: "{app}"; Comment: "Desinstala Hydra Launcher"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Comment: "Lanza Hydra Launcher"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 Name: "{userstartmenu}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Comment: "Lanza Hydra Launcher"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: startmenuicon
-Name: "{userstartmenu}\{#MyAppName} (Anclado)"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Comment: "Lanza Hydra Launcher"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: pinstart
-Name: "{userstartmenu}\{#MyAppName} (Barra tareas)"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Comment: "Lanza Hydra Launcher"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: pintaskbar
+
+[InstallDelete]
+; Eliminar accesos directos obsoletos de versiones anteriores (nombres "(Anclado)"/"(Barra tareas)")
+Type: files; Name: "{userstartmenu}\{#MyAppName} (Anclado).lnk"
+Type: files; Name: "{userstartmenu}\{#MyAppName} (Barra tareas).lnk"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Ejecutar Hydra Launcher"; Flags: nowait postinstall skipifsilent; StatusMsg: "Ejecutando Hydra Launcher..."
+; Refrescar la caché de iconos de Windows para mostrar el logo correcto
+Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden nowait
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -114,64 +117,6 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyApp
 ; Root: HKCU; Subkey: "Software\Classes\hydra\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Code]
-// ============================================================================
-// Funciones auxiliares para anclar a Inicio/Barra tareas
-// ============================================================================
-
-function IsWin10OrLater(): Boolean;
-begin
-  Result := (GetWindowsVersion >= $0A000000); // Windows 10 = 10.0
-end;
-
-function IsWin7OrLater(): Boolean;
-begin
-  Result := (GetWindowsVersion >= $06010000); // Windows 7 = 6.1
-end;
-
-procedure PinToStartMenu(AppName: String);
-var
-  Shell, Folder, Item, Verb: Variant;
-  I: Integer;
-begin
-  try
-    Shell := CreateOleObject('Shell.Application');
-    Folder := Shell.NameSpace(ExpandConstant('{userstartmenu}'));
-    Item := Folder.ParseName(AppName + '.lnk');
-    if VarIsClear(Item) then Exit;
-    for I := 1 to Item.Verbs.Count do begin
-      Verb := Item.Verbs.Item(I);
-      if (Verb.Name = 'Pin to Start') or (Verb.Name = 'Anclar a Inicio') then begin
-        Verb.DoIt;
-        Break;
-      end;
-    end;
-  except
-    // Silencioso si falla
-  end;
-end;
-
-procedure PinToTaskbar(AppName: String);
-var
-  Shell, Folder, Item, Verb: Variant;
-  I: Integer;
-begin
-  try
-    Shell := CreateOleObject('Shell.Application');
-    Folder := Shell.NameSpace(ExpandConstant('{userstartmenu}'));
-    Item := Folder.ParseName(AppName + '.lnk');
-    if VarIsClear(Item) then Exit;
-    for I := 1 to Item.Verbs.Count do begin
-      Verb := Item.Verbs.Item(I);
-      if (Verb.Name = 'Pin to taskbar') or (Verb.Name = 'Anclar a la barra de tareas') then begin
-        Verb.DoIt;
-        Break;
-      end;
-    end;
-  except
-    // Silencioso si falla
-  end;
-end;
-
 // ============================================================================
 // Páginas personalizadas opcionales
 // ============================================================================

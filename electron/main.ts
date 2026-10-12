@@ -359,15 +359,16 @@ ipcMain.handle('get-installed-versions-full', async () => {
     const result = []
     for (const d of dirs) {
       const jsonPath = path.join(vDir, d, d + '.json')
-      let type = 'vanilla'; let valid = false
+      let type = 'vanilla'; let valid = false; let modpack: string | null = null
       if (fs.existsSync(jsonPath)) {
         try {
           const j = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'))
           type = j.type || 'vanilla'
           valid = true
+          if (j.hydraModpack?.name) modpack = String(j.hydraModpack.name)
         } catch {}
       }
-      result.push({ id: d, type, valid })
+      result.push({ id: d, type, valid, modpack })
     }
     return result
   } catch { return [] }
@@ -568,11 +569,49 @@ ipcMain.handle('launch', async (_e, opts:any) => {
 
     const root = opts.root || ROOT
     const version: string = opts.version
+    // Modpack Hydra: la versión seleccionada es una carpeta creada por el instalador de packs
+    let mcVersion: string = version
+    let packLoader = ''
+    try {
+      const packJson = path.join(root, 'versions', version, `${version}.json`)
+      if (fs.existsSync(packJson)) {
+        const pj = JSON.parse(fs.readFileSync(packJson, 'utf-8'))
+        if (pj?.hydraModpack) {
+          const mp = pj.hydraModpack
+          mcVersion = mp.base || version
+          packLoader = mp.loader || 'vanilla'
+          send(`  modpack "${mp.name}" → Minecraft ${mcVersion}, loader ${packLoader}`)
+          // Activar mods del pack: quitar mods sincronizados por otros packs y copiar los de este
+          const vRoot = path.join(root, 'versions')
+          const globalMods = path.join(root, 'mods')
+          try {
+            for (const d of fs.readdirSync(vRoot)) {
+              const mk = path.join(vRoot, d, '.hydra-synced.json')
+              if (!fs.existsSync(mk)) continue
+              const prev: string[] = JSON.parse(fs.readFileSync(mk, 'utf-8'))
+              for (const f of prev) { try { fs.rmSync(path.join(globalMods, f), { force: true }) } catch {} }
+            }
+          } catch {}
+          const packMods = path.join(vRoot, version, 'mods')
+          const synced: string[] = []
+          if (fs.existsSync(packMods)) {
+            fs.mkdirSync(globalMods, { recursive: true })
+            for (const f of fs.readdirSync(packMods)) {
+              if (!f.endsWith('.jar')) continue
+              fs.copyFileSync(path.join(packMods, f), path.join(globalMods, f))
+              synced.push(f)
+            }
+          }
+          try { fs.writeFileSync(path.join(vRoot, version, '.hydra-synced.json'), JSON.stringify(synced)) } catch {}
+          send(`  ${synced.length} mods del pack activados en /mods`)
+        }
+      }
+    } catch (e: any) { send(`  aviso modpack: ${String(e?.message || e)}`) }
     // detectar tipo real desde manifest (release/snapshot) para no forzar 'release' en snapshots como 26.3-rc-3
     let type = 'release'
     try {
       const { data } = await axios.get('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json', { timeout: 8000 })
-      const found = (data.versions as any[]).find(v=>v.id===version)
+      const found = (data.versions as any[]).find(v=>v.id===mcVersion)
       if (found?.type) type = found.type
       send(`  tipo detectado: ${type}`)
     } catch { send('  no se pudo detectar tipo, usando release') }
@@ -657,10 +696,12 @@ ipcMain.handle('launch', async (_e, opts:any) => {
 
     let customVersion: string | null = null
     let forgePath: string | null = null
-    if (opts.loader === 'fabric') {
-      customVersion = await installFabric(version, send)
-    } else if (opts.loader === 'forge') {
-      const res = await installForge(version, send)
+    // el modpack impone su propio loader; si no, usa el seleccionado en la UI
+    const effLoader = packLoader || opts.loader
+    if (effLoader === 'fabric') {
+      customVersion = await installFabric(mcVersion, send)
+    } else if (effLoader === 'forge' || effLoader === 'neoforge') {
+      const res = await installForge(mcVersion, send)
       if (res.endsWith('.jar')) forgePath = res
       else customVersion = res
     }
@@ -685,7 +726,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     const launchOpts:any = {
       authorization: auth,
       root,
-      version: { number: version, type, custom: customVersion || undefined },
+      version: { number: mcVersion, type, custom: customVersion || undefined },
       memory: { max: opts.ram?.max || '4G', min: opts.ram?.min || '1G' },
       overrides: { gameDirectory: gameDir, detached: false }
     }
@@ -975,6 +1016,8 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
       zip.extractAllTo(tempDir, true)
       let manifest: any = null
       let packName = fileName.replace(/\.(mrpack|zip)$/i, '')
+      let baseVersion = ''
+      let packLoader = 'vanilla'
       let installed = 0
       let skipped = 0
       const manifestPath = path.join(tempDir, 'modrinth.index.json')
@@ -982,50 +1025,88 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
       if (fs.existsSync(manifestPath)) {
         manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
         packName = manifest?.name || packName
-        const files = manifest?.files || []
-        send(`  Modpack ${packName}: ${files.length} archivos...`)
+        baseVersion = String(manifest?.dependencies?.minecraft || '')
+        if (manifest?.dependencies?.['fabric-loader']) packLoader = 'fabric'
+        else if (manifest?.dependencies?.neoforge) packLoader = 'neoforge'
+        else if (manifest?.dependencies?.forge) packLoader = 'forge'
+      } else if (fs.existsSync(cfManifestPath)) {
+        manifest = JSON.parse(fs.readFileSync(cfManifestPath, 'utf-8'))
+        packName = manifest?.name || packName
+        baseVersion = String(manifest?.minecraftVersion || '')
+        const ml = (manifest?.modLoaders || []).find((m: any) => m.primary) || manifest?.modLoaders?.[0]
+        const mlId = String(ml?.id || '')
+        if (mlId.startsWith('fabric')) packLoader = 'fabric'
+        else if (mlId.startsWith('neoforge')) packLoader = 'neoforge'
+        else if (mlId.startsWith('forge')) packLoader = 'forge'
+      } else {
+        try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
+        return { ok: false, error: 'El archivo no tiene manifest (no es un modpack valido)' }
+      }
+
+      // Crear carpeta de version/<id> para que aparezca en Instaladas y se pueda lanzar
+      const sanitizeId = (s: string) => s.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'modpack'
+      let packId = sanitizeId(packName)
+      if (fs.existsSync(path.join(ROOT, 'versions', packId))) packId = `${packId}-${Date.now().toString(36)}`
+      const packDir = path.join(ROOT, 'versions', packId)
+      const packModsDir = path.join(packDir, 'mods')
+      fs.mkdirSync(packModsDir, { recursive: true })
+      send(`  Modpack ${packName} → version ${packId} (base ${baseVersion || '?'}, ${packLoader})`)
+
+      const files = manifest?.files || []
+      send(`  ${files.length} archivos...`)
+      if (fs.existsSync(manifestPath)) {
+        // Modrinth (.mrpack): URLs directas en downloads[]
         for (const f of files) {
           try {
             const url = Array.isArray(f.downloads) && f.downloads.length ? f.downloads[0] : ''
             if (!url) { skipped++; continue }
-            const destPath = path.join(modsDir, path.basename(f.path || ''))
+            const destPath = path.join(packModsDir, path.basename(f.path || ''))
             const fr = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000 })
             fs.writeFileSync(destPath, Buffer.from(fr.data))
             installed++
             send(`    OK ${path.basename(f.path || '')}`)
           } catch { skipped++ }
         }
-        const overrides = path.join(tempDir, 'overrides')
-        if (fs.existsSync(overrides)) {
-          try { fs.cpSync(overrides, ROOT, { recursive: true }) } catch {}
-          send('  overrides aplicados')
-        }
-      } else if (fs.existsSync(cfManifestPath)) {
-        manifest = JSON.parse(fs.readFileSync(cfManifestPath, 'utf-8'))
-        packName = manifest?.name || packName
-        const files = manifest?.files || []
-        send(`  Modpack CF ${packName}: ${files.length} mods...`)
+      } else {
+        // CurseForge: projectID/fileID vía API
         for (const f of files) {
           try {
             if (!cfHeaders['x-api-key']) { skipped++; continue }
             const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${f.projectID}/files/${f.fileID}/download-url`, { headers: cfHeaders, timeout: 15000 })
             const fr = await axios.get(dl.data, { responseType: 'arraybuffer', timeout: 120000 })
             const m = String(dl.data).split('?')[0].split('/').pop()
-            fs.writeFileSync(path.join(modsDir, decodeURIComponent(m || `${f.projectID}.jar`)), Buffer.from(fr.data))
+            fs.writeFileSync(path.join(packModsDir, decodeURIComponent(m || `${f.projectID}.jar`)), Buffer.from(fr.data))
             installed++
           } catch { skipped++ }
         }
-        const cfOverrides = path.join(tempDir, 'overrides')
-        if (fs.existsSync(cfOverrides)) {
-          try { fs.cpSync(cfOverrides, ROOT, { recursive: true }) } catch {}
-        }
-      } else {
-        try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
-        return { ok: false, error: 'El archivo no tiene manifest (no es un modpack valido)' }
       }
+
+      // Overrides (config, resourcepacks...) → .minecraft global
+      const overrides = path.join(tempDir, 'overrides')
+      if (fs.existsSync(overrides)) {
+        try { fs.cpSync(overrides, ROOT, { recursive: true }) } catch {}
+        send('  overrides aplicados')
+      }
+
+      // JSON de version: el pack aparece en Instaladas y el launch lo detecta
+      fs.writeFileSync(path.join(packDir, packId + '.json'), JSON.stringify({
+        id: packId,
+        inheritsFrom: baseVersion || '1.20.1',
+        type: 'release',
+        hydraModpack: { name: packName, loader: packLoader, base: baseVersion || '1.20.1' }
+      }, null, 2))
+
+      // Registrar en "Mis modpacks"
+      const packs = loadModpacks()
+      const rec = { id: packId, name: packName, base: baseVersion, loader: packLoader, versionId: packId, installedAt: Date.now(), mods: installed }
+      const ix = packs.findIndex(p => p.id === packId)
+      if (ix >= 0) packs[ix] = rec
+      else packs.push(rec)
+      saveModpacks(packs)
+
       try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
-      send(`  Modpack instalado: ${packName} (${installed} mods${skipped ? `, ${skipped} omitidos` : ''})`)
-      return { ok: true, packName, installed, skipped }
+      send(`  Modpack instalado como version: ${packId} (${installed} mods${skipped ? `, ${skipped} omitidos` : ''})`)
+      return { ok: true, packName, packId, installed, skipped, baseVersion, loader: packLoader }
     }
 
     const dest = path.join(modsDir, path.basename(fileName))

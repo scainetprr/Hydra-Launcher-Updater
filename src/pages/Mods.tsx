@@ -68,7 +68,7 @@ export default function Mods(){
     const res = await window.api?.installContent?.({ source: it.source, id: it.id, type, gameVersion: selectedVersion, loader })
     setInstalling(p=>({...p,[it.id]:false}))
     if (res?.ok) {
-      const msg = type==='modpack' ? `Pack instalado: ${res.packName} (${res.installed} mods)` : `Instalado: ${res.filename}`
+      const msg = type==='modpack' ? `Pack instalado como versión: ${res.packName} (${res.installed} mods) — ya aparece en Versiones → Instaladas` : `Instalado: ${res.filename}`
       setResults(r=>({...r,[it.id]:`✓ ${msg}`}))
       addLog(`✓ ${msg}`)
       if (type==='modpack') { const p = await window.api?.getModpacks?.(); setPacks(p||[]) }
