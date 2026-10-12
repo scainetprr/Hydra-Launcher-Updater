@@ -106,7 +106,7 @@ Hydra Launcher es un **launcher personalizado de Minecraft Java Edition** desarr
 
 - **Sin telemetría oculta** — Solo logs locales en `Ajustes → Logs`
 - **Tokens Microsoft** — Guardados cifrados localmente (`hydra-accounts.json`), refresh automático
-- **Código abierto** — Repositorio: `scainetprr/Hydra-Launcher-Updater`
+- **Repositorio público** — `scainetprr/hydra-launcher-web` (landing + releases)
 - **Sin bundleware** — Solo lo necesario para jugar
 
 ---
@@ -118,7 +118,7 @@ Hydra Launcher es un **launcher personalizado de Minecraft Java Edition** desarr
 **¡SÍ!** Tienes **3 opciones**:
 
 #### 1. **GitHub Releases (Actual — Gratis y Automático)**
-- URL directa: `https://github.com/scainetprr/Hydra-Launcher-Updater/releases/latest`
+- URL directa: `https://github.com/scainetprr/hydra-launcher-web/releases/latest`
 - El auto-updater ya usa esto
 - **Pros:** Gratis, CDN global, HTTPS, versionado automático
 - **Contras:** UI de GitHub, no tu branding
@@ -126,7 +126,7 @@ Hydra Launcher es un **launcher personalizado de Minecraft Java Edition** desarr
 #### 2. **Tu propia web (Recomendado para branding tipo TLauncher)**
 ```html
 <!-- Ejemplo simple -->
-<a href="https://github.com/scainetprr/Hydra-Launcher-Updater/releases/download/v1.0.0/Hydra-Launcher-Setup-v1.0.0.exe" 
+<a href="https://github.com/scainetprr/hydra-launcher-web/releases/download/v1.0.0/Hydra-Launcher-Setup-v1.0.0.exe" 
    class="btn btn-primary">
   Descargar Hydra Launcher v1.0.0
 </a>
@@ -138,7 +138,7 @@ Hydra Launcher es un **launcher personalizado de Minecraft Java Edition** desarr
 #### 3. **GitHub Pages (Gratis, en tu repo)**
 - Activa **Settings → Pages → Deploy from branch → gh-pages**
 - Crea `index.html` en rama `gh-pages` o carpeta `/docs`
-- URL: `https://scainetprr.github.io/Hydra-Launcher-Updater/`
+- URL: `https://scainetprr.github.io/hydra-launcher-web/`
 - **Gratis, HTTPS, dominio personalizable** (`launcher.hydrastudio.com` con CNAME)
 
 ---
@@ -161,7 +161,7 @@ Tecnologías: Electron, React, Vite, TailwindCSS, Inno Setup, electron-updater, 
 ## 📞 **Soporte y Comunidad**
 
 - **Discord:** https://discord.gg/qyyREajJgC (Hydra Studio)
-- **Issues:** https://github.com/scainetprr/Hydra-Launcher-Updater/issues
+- **Issues:** https://github.com/scainetprr/hydra-launcher-web/issues
 - **Desarrollador:** scainetprr (1307246359895740448)
 
 ---

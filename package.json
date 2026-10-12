@@ -66,13 +66,12 @@
     "publish": {
       "provider": "github",
       "owner": "scainetprr",
-      "repo": "Hydra-Launcher-Updater"
+      "repo": "hydra-launcher-web"
     },
     "win": {
       "target": "nsis",
       "icon": "public/icon.png",
-      "requestedExecutionLevel": "asInvoker",
-      "sign": false
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
