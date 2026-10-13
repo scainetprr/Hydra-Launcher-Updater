@@ -2,6 +2,14 @@
   "updated": "2026-10-12",
   "posts": [
     {
+      "id": "v133",
+      "icon": "🔄",
+      "tag": "Launcher",
+      "date": "12/10/2026",
+      "title": "Hydra v1.3.3 — avisos de actualización confiables",
+      "body": "El launcher ahora revisa si hay versión nueva cada 30 minutos y al volver a la ventana, así no te pierdes ninguna actualización aunque lo dejes abierto."
+    },
+    {
       "id": "v132",
       "icon": "🧩",
       "tag": "Launcher",

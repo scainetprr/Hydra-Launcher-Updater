@@ -186,6 +186,7 @@ function UpdateBanner(){
   const [cleanup,setCleanup]=useState(true)
   useEffect(()=>{
     window.api?.onUpdateDownloaded?.((i:any)=> setInfo(i))
+    window.api?.getUpdateState?.().then((s:any)=>{ if(s?.downloaded) setInfo(s.downloaded) }).catch(()=>{})
   },[])
   if(!info) return null
   return (

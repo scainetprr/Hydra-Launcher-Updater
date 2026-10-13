@@ -1,6 +1,6 @@
 {
   "name": "hydra-launcher",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Hydra Launcher - Launcher original para HyperHard Network y Eventos Hydra",
   "main": "dist-electron/main.js",
   "type": "module",

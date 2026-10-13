@@ -27,6 +27,10 @@ export default function Settings(){
   useEffect(()=>{
     window.api?.onUpdateAvailable?.((i:any)=>{ setUpdInfo(i); setUpdStatus({msg:`Disponible: v${i.version}`,kind:'ok'}) })
     window.api?.onUpdateDownloaded?.((i:any)=>{ setUpdInfo(i); setUpdStatus({msg:`v${i.version} descargado - listo para instalar`,kind:'ok'}) })
+    window.api?.getUpdateState?.().then((s:any)=>{
+      const i = s?.downloaded || s?.available
+      if (i) { setUpdInfo(i); setUpdStatus({msg: s?.downloaded ? `v${i.version} descargado - listo para instalar` : `Disponible: v${i.version}`, kind:'ok'}) }
+    }).catch(()=>{})
   },[])
 
   const patchConfig = (patch:any) => {

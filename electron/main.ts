@@ -103,17 +103,29 @@ app.whenReady().then(() => {
   setTimeout(() => setIdlePresence(), 3500)
   // Auto-updater en producción
   if (!process.env.VITE_DEV_SERVER_URL) {
-    autoUpdater.checkForUpdatesAndNotify()
     autoUpdater.on('update-available', (info) => {
       console.log('[autoUpdater] update available:', info.version)
+      pendingUpdate = { available: info, downloaded: null }
       win?.webContents.send('update-available', info)
     })
     autoUpdater.on('update-downloaded', (info) => {
       console.log('[autoUpdater] update downloaded:', info.version)
+      pendingUpdate = { available: pendingUpdate?.available || info, downloaded: info }
       win?.webContents.send('update-downloaded', info)
     })
     autoUpdater.on('error', (err) => {
       console.error('[autoUpdater] error:', err)
+    })
+    autoUpdater.checkForUpdatesAndNotify()
+    // re-chequeo periodico: si el launcher quedó abierto no debe perderse una actualización
+    setInterval(() => { autoUpdater.checkForUpdates().catch(() => {}) }, 30 * 60 * 1000)
+    let lastFocusCheck = 0
+    win?.on('focus', () => {
+      const now = Date.now()
+      if (now - lastFocusCheck > 10 * 60 * 1000) {
+        lastFocusCheck = now
+        autoUpdater.checkForUpdates().catch(() => {})
+      }
     })
   }
   if (process.env.HYDRA_SHOT) {
@@ -141,6 +153,8 @@ ipcMain.handle('win:max', () => win?.isMaximized() ? win?.unmaximize() : win?.ma
 ipcMain.handle('win:close', () => win?.close())
 
 // --- AUTO-UPDATER ---
+let pendingUpdate: { available: any; downloaded: any } | null = null
+ipcMain.handle('get-update-state', () => pendingUpdate)
 ipcMain.handle('check-updates', async () => {
   try {
     const result = await autoUpdater.checkForUpdates()
