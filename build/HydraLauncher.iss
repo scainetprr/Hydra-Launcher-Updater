@@ -85,8 +85,9 @@ Type: files; Name: "{userstartmenu}\{#MyAppName} (Barra tareas).lnk"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Ejecutar Hydra Launcher"; Flags: nowait postinstall skipifsilent; StatusMsg: "Ejecutando Hydra Launcher..."
-; Refrescar la caché de iconos de Windows para mostrar el logo correcto
-Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden nowait
+; Refrescar la caché de iconos de Windows (solo si el binario existe en esa ruta)
+Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden nowait; Check: IE4ExistsSys
+Filename: "{win}\Sysnative\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden nowait; Check: IE4ExistsNative
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -159,6 +160,16 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
+end;
+
+function IE4ExistsSys(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{sys}\ie4uinit.exe'));
+end;
+
+function IE4ExistsNative(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{win}\Sysnative\ie4uinit.exe'));
 end;
 
 // procedure CurStepChanged(Step: Integer);
