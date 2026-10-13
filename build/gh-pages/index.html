@@ -1720,13 +1720,20 @@ menuBtn.addEventListener('click', () => {
       });
     }
 
-    function handleGoogleCredential(cred) {
+    function handleGoogleCredential(resp) {
       try {
-        const p = JSON.parse(atob(cred.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const cred = resp && resp.credential ? resp.credential : '';
+        const b64 = cred.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+        const json = new TextDecoder().decode(Uint8Array.from(atob(padded), c => c.charCodeAt(0)));
+        const p = JSON.parse(json);
         const u = { displayName: p.name || p.given_name || (p.email ? p.email.split('@')[0] : 'Usuario Google'), email: p.email || '', provider: 'Google', uid: 'google_' + (p.sub || '') };
         refreshAuthUI(u);
         window.hydraToast('✓ Sesión iniciada con Google (' + u.displayName + ')');
-      } catch (e) { window.hydraToast('✗ Error procesando credencial de Google'); }
+      } catch (e) {
+        console.error('[google-auth]', e, resp);
+        window.hydraToast('✗ Error procesando credencial de Google');
+      }
     }
 
     async function authGoogle() {
