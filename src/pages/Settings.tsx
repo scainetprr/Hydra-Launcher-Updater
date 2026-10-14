@@ -49,7 +49,11 @@ export default function Settings(){
       else setUpdStatus({msg:`Estás al día (v${appVer})`,kind:'ok'})
     } else setUpdStatus({msg:`Error: ${res?.error||'sin conexión'}`,kind:'err'})
   }
-  const installUpdate = () => window.api?.installUpdate?.({ cleanupOld: config.cleanupOldOnUpdate !== false })
+  const installUpdate = async () => {
+    setUpdStatus({msg:'Descargando e instalando…',kind:'busy'})
+    const res:any = await window.api?.installUpdate?.({ cleanupOld: config.cleanupOldOnUpdate !== false })
+    if (res && res.ok === false) setUpdStatus({msg:`Error: ${res.error||'no se pudo instalar'}`,kind:'err'})
+  }
   const cleanNow = async () => {
     const res = await window.api?.cleanupOldInstallers?.()
     setCleanupResult(res?.removed ? `${res.removed} instalador(es) antiguo(s) eliminados` : 'Nada que limpiar')

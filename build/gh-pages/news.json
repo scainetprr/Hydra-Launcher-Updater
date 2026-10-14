@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1311",
+      "icon": "🛠️",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.11 — Arreglos del instalador y de actualización",
+      "body": "Se corrigió el tema del instalador: ahora todo el texto se muestra correctamente en cada paso (fondo oscuro aplicado a todas las pantallas). Además, el botón 'Reiniciar e instalar' de Ajustes ahora descarga la versión nueva y la instala automáticamente al cerrar, y desapareció el error de JavaScript que aparecía después de aceptar la instalación."
+    },
+    {
       "id": "v1310",
       "icon": "🖥️",
       "tag": "Launcher",

@@ -5,7 +5,7 @@
 ; ============================================================================
 
 #define MyAppName "Hydra Launcher"
-#define MyAppVersion "1.3.10"
+#define MyAppVersion "1.3.11"
 #define MyAppPublisher "Hydra Studio (scainetprr)"
 #define MyAppURL "https://discord.gg/qyyREajJgC"
 #define MyAppExeName "Hydra Launcher.exe"
@@ -57,9 +57,6 @@ SignedUninstaller=no
 WizardImageFile=wizard\WizardImage.bmp
 WizardSmallImageFile=wizard\WizardSmallImage.bmp
 ; título de barra
-WindowShowCaption=yes
-WindowStartMaximized=no
-WindowResizable=no
 ; ocultar el "info after" para un final más limpio
 ; (se eliminó InfoAfterFile)
 
@@ -71,28 +68,14 @@ spanish.WelcomeLabel1=¡Bienvenido a la instalación de [name]!
 spanish.WelcomeLabel2=Este asistente te guiará en la instalación de Hydra Launcher en tu equipo.%n%nSe recomienda cerrar otros programas antes de continuar.%n%nHaz clic en Continuar para empezar.
 spanish.LicenseLabel=Acuerdo de Licencia
 spanish.LicenseLabel3=Por favor, lee el siguiente acuerdo de licencia antes de continuar. Debes aceptar las cláusulas para instalar Hydra Launcher.
-spanish.LicenseMemoLabel=
-spanish.DirLabel=Destino de instalación
-spanish.DirLabel3=Elige la carpeta donde quieres instalar Hydra Launcher.%n%nPara instalar en la ruta predeterminada, haz clic en Continuar.
-spanish.DirBrowseLabel=Para elegir otra carpeta, haz clic en Examinar.
-spanish.GroupLabel=Nombre del grupo del menú inicio
-spanish.GroupLabel3=Elige el nombre de la carpeta del menú inicio donde se crearán los accesos directos del programa.
-spanish.GroupBrowseLabel=Para elegir otra carpeta, haz clic en Examinar.
-spanish.SelectTasksLabel=Tareas adicionales
 spanish.SelectTasksLabel2=Marca las tareas adicionales que desees realizar durante la instalación:
-spanish.SelectTasksDescLabel=¿Qué tareas adicionales deseas realizar?
-spanish.ReadyLabel=Listo para instalar
-spanish.ReadyLabel3=El instalador está preparado para comenzar la instalación de [name].%n%nHaz clic en Instalar para continuar con la instalación, o vuelve atrás si deseas revisar alguna opción.
-spanish.ReadyMemoLabel=Estas son las opciones que elegiste:
 spanish.InstallingLabel=Instalando [name] en tu equipo. Esto puede tardar unos segundos...
 spanish.FinishedLabel=¡La instalación de [name] en tu equipo ha finalizado!
-spanish.FinishedLabel2=Hydra Launcher está listo para usar.%n%nHaz clic en Finalizar para cerrar el asistente.
 spanish.ButtonNext=&Continuar
 spanish.ButtonBack=&Volver
 spanish.ButtonInstall=&Instalar
 spanish.ButtonFinish=&Finalizar
 spanish.ButtonCancel=&Cancelar
-spanish.PasswordLabel=Introduce la contraseña de administrador
 
 [Tasks]
 Name: "desktopicon"; Description: "Crear un acceso directo en el Escritorio"; GroupDescription: "Iconos adicionales:"; Flags: unchecked
@@ -135,31 +118,89 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyApp
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "QuietUninstallString"; ValueData: """{uninstallexe}"" /SILENT"
 
 [Code]
-[Code]
-// Tema oscuro personalizado para el instalador
+// Tema oscuro personalizado para el instalador (Hydra)
+// Clave: cada control de texto recibe fondo EXPLÍCITO (ParentBackground:=False + Color)
+// si no, el texto blanco hereda fondo claro y desaparece.
 
 const
-  CLR_TEXT     = $FFFFFF;
-  CLR_TEXT_DIM = $B0B8C0;
-  CLR_GREEN    = $45C832;
-  CLR_PANEL    = $3D3225;
+  CLR_BG      = $2E2E2E;  // fondo general (gris oscuro)
+  CLR_PANEL   = $262626;  // memos, listas, edits
+  CLR_TEXT    = $FFFFFF;
+  CLR_TEXT_DIM= $C8C8C8;
+  CLR_GREEN   = $32C845;  // acento
+
+procedure DarkenChildren(Parent: TWinControl; TextColor: Integer);
+var
+  I: Integer;
+  C: TControl;
+begin
+  for I := 0 to Parent.ControlCount - 1 do
+  begin
+    C := Parent.Controls[I];
+    if C is TNewStaticText then
+    begin
+      TNewStaticText(C).ParentBackground := False;
+      TNewStaticText(C).Color := CLR_BG;
+      TNewStaticText(C).Font.Color := TextColor;
+    end
+    else if C is TMemo then
+    begin
+      TMemo(C).ParentBackground := False;
+      TMemo(C).Color := CLR_PANEL;
+      TMemo(C).Font.Color := CLR_TEXT;
+    end
+    else if C is TEdit then
+    begin
+      TEdit(C).ParentBackground := False;
+      TEdit(C).Color := CLR_PANEL;
+      TEdit(C).Font.Color := CLR_TEXT;
+    end
+    else if C is TNewCheckListBox then
+    begin
+      TNewCheckListBox(C).ParentBackground := False;
+      TNewCheckListBox(C).Color := CLR_PANEL;
+      TNewCheckListBox(C).Font.Color := CLR_TEXT;
+    end
+    else if C is TListBox then
+    begin
+      TListBox(C).ParentBackground := False;
+      TListBox(C).Color := CLR_PANEL;
+      TListBox(C).Font.Color := CLR_TEXT;
+    end
+    else if C is TNewCheckBox then
+      TNewCheckBox(C).Font.Color := TextColor
+    else if C is TNewRadioButton then
+      TNewRadioButton(C).Font.Color := TextColor
+    else if C is TNewNotebookPage then
+    begin
+      TNewNotebookPage(C).ParentBackground := False;
+      TNewNotebookPage(C).Color := CLR_BG;
+      DarkenChildren(TWinControl(C), TextColor);
+    end
+    else if C is TNewNotebook then
+      DarkenChildren(TWinControl(C), TextColor) // notebooks no exponen Color
+    else if C is TWinControl then
+      DarkenChildren(TWinControl(C), TextColor); // contenedores: sin cambiar color
+  end;
+end;
 
 procedure StyleButton(Btn: TNewButton; Bold: Boolean);
 begin
   Btn.Font.Color := CLR_TEXT;
-  Btn.Font.Size := 10;
+  Btn.Font.Size := 9;
   if Bold then
     Btn.Font.Style := [fsBold]
   else
     Btn.Font.Style := [];
-  Btn.Width := 110;
-  Btn.Height := 28;
 end;
 
 procedure InitializeWizard();
 begin
+  WizardForm.Color := CLR_BG;
   WizardForm.Font.Color := CLR_TEXT;
   WizardForm.Font.Size := 9;
+
+  DarkenChildren(WizardForm, CLR_TEXT);
 
   StyleButton(WizardForm.CancelButton, False);
   StyleButton(WizardForm.BackButton, False);
@@ -174,21 +215,10 @@ begin
   WizardForm.LicenseLabel1.Font.Color := CLR_GREEN;
   WizardForm.LicenseLabel1.Font.Size := 12;
   WizardForm.LicenseLabel1.Font.Style := [fsBold];
-  WizardForm.LicenseMemo.Color := CLR_PANEL;
-  WizardForm.LicenseMemo.Font.Color := CLR_TEXT;
   WizardForm.LicenseMemo.Font.Size := 9;
 
-  WizardForm.DirEdit.Color := CLR_PANEL;
-  WizardForm.DirEdit.Font.Color := CLR_TEXT;
-
-  WizardForm.GroupEdit.Color := CLR_PANEL;
-  WizardForm.GroupEdit.Font.Color := CLR_TEXT;
-
-  WizardForm.TasksList.Color := CLR_PANEL;
-  WizardForm.TasksList.Font.Color := CLR_TEXT;
-
-  WizardForm.ReadyMemo.Color := CLR_PANEL;
-  WizardForm.ReadyMemo.Font.Color := CLR_TEXT;
+  WizardForm.DirEdit.Font.Size := 9;
+  WizardForm.GroupEdit.Font.Size := 9;
 
   WizardForm.FinishedLabel.Font.Color := CLR_GREEN;
   WizardForm.FinishedLabel.Font.Size := 14;

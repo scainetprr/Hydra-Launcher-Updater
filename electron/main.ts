@@ -4,7 +4,7 @@ import fs from 'fs'
 import os from 'os'
 import { fileURLToPath } from 'url'
 import axios from 'axios'
-import { execSync, exec } from 'child_process'
+import { execSync, exec, spawn } from 'child_process'
 import net from 'net'
 import { autoUpdater } from 'electron-updater'
 import { discordSetActivity, discordClearActivity, discordShutdown } from './discord'
@@ -371,8 +371,26 @@ ipcMain.handle('check-updates', async () => {
 })
 ipcMain.handle('install-update', async (_e, opts: any) => {
   try { if (opts?.cleanupOld !== false) cleanupOldInstallers(app.getVersion()) } catch {}
-  autoUpdater.quitAndInstall()
-  return { ok: true }
+  try {
+    // descargar primero si aún no está descargada (quitAndInstall solo sirve con NSIS ya descargado)
+    if (!pendingUpdate?.downloaded) {
+      autoUpdater.autoDownload = true
+      await autoUpdater.downloadUpdate()
+    }
+    const file: string | undefined = (autoUpdater as any).downloadedUpdateHelper?.file
+    if (!file || !fs.existsSync(file)) throw new Error('No se encontró el instalador descargado')
+    // nuestro instalador es Inno Setup: usar flags de Inno, no los de NSIS (/S)
+    autoUpdater.autoInstallOnAppQuit = false // evitar doble instalador al salir
+    const child = spawn(file, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'], {
+      detached: true, stdio: 'ignore', windowsHide: false
+    })
+    child.unref()
+    setTimeout(() => { try { app.quit() } catch {} }, 1200)
+    return { ok: true }
+  } catch (e: any) {
+    console.error('[install-update]', e)
+    return { ok: false, error: e?.message || String(e) }
+  }
 })
 ipcMain.handle('get-app-version', () => app.getVersion())
 ipcMain.handle('set-zoom', (_e, z: number) => {
