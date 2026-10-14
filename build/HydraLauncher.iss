@@ -5,7 +5,7 @@
 ; ============================================================================
 
 #define MyAppName "Hydra Launcher"
-#define MyAppVersion "1.3.13"
+#define MyAppVersion "1.3.14"
 #define MyAppPublisher "Hydra Studio (scainetprr)"
 #define MyAppURL "https://discord.gg/qyyREajJgC"
 #define MyAppExeName "Hydra Launcher.exe"
@@ -244,6 +244,14 @@ begin
   WizardForm.FinishedLabel.Font.Color := CLR_GREEN;
   WizardForm.FinishedLabel.Font.Size := 14;
   WizardForm.FinishedLabel.Font.Style := [fsBold];
+
+  // Ajustar la altura de todos los labels ya estilizados para que no se recorte el texto
+  WizardForm.AdjustLabelHeight(WizardForm.PageNameLabel);
+  WizardForm.AdjustLabelHeight(WizardForm.PageDescriptionLabel);
+  WizardForm.AdjustLabelHeight(WizardForm.WelcomeLabel1);
+  WizardForm.AdjustLabelHeight(WizardForm.WelcomeLabel2);
+  WizardForm.AdjustLabelHeight(WizardForm.LicenseLabel1);
+  WizardForm.AdjustLabelHeight(WizardForm.FinishedLabel);
 end;
 
 function InitializeSetup(): Boolean;

@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1314",
+      "icon": "🐞",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.14 — Borrado de versiones y arranque fiable",
+      "body": "Se corrigió el borrado de versiones y modpacks: ahora la lista \"Instaladas\" se actualiza al instante tras eliminar una entrada. El launcher deja de fallar al arrancar si la carpeta .minecraft (o su unión a otro disco) tarda en montarse. Además, el texto de la cabecera del instalador ya no aparece recortado."
+    },
+    {
       "id": "v1313",
       "icon": "🛠️",
       "tag": "Launcher",

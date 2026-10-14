@@ -285,7 +285,12 @@ export default function Mods(){
     const res = await window.api.deleteModpack?.(id)
     if (res?.ok) {
       // si era un pack instalado como version, borrar tambien su carpeta versions/<id>
-      if (pack?.versionId) { try { await window.api.deleteVersion?.(pack.versionId) } catch {} }
+      if (pack?.versionId) {
+        try {
+          await window.api.deleteVersion?.(pack.versionId)
+          window.api?.getInstalledVersionsFull?.().then((l:any)=> set({ installedVersions: l||[] })).catch(()=>{})
+        } catch {}
+      }
       setPacks(packs.filter(p=>p.id!==id)); addLog('Modpack eliminado')
     }
   }

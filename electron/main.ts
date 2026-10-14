@@ -40,8 +40,10 @@ try {
     fs.copyFileSync(LEGACY_ACCOUNTS, ACCOUNTS_PATH)
   }
 } catch {}
-if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true })
-if (!fs.existsSync(HYDRA_DIR)) fs.mkdirSync(HYDRA_DIR, { recursive: true })
+// .minecraft puede ser un junction a otra unidad (D:) que tarda en montarse al
+// arrancar; si mkdirSync falla no debe crashear el proceso principal.
+try { if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true }) } catch (e) { console.error('[main] no se pudo crear ROOT:', e) }
+try { if (!fs.existsSync(HYDRA_DIR)) fs.mkdirSync(HYDRA_DIR, { recursive: true }) } catch (e) { console.error('[main] no se pudo crear HYDRA_DIR:', e) }
 
 function createWindow() {
   const preloadCandidates = [path.join(__dirname, 'preload.mjs'), path.join(__dirname, 'preload.js')]

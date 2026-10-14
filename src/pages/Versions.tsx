@@ -31,7 +31,11 @@ export default function Versions(){
     setBusyDel(id)
     const res = await window.api?.deleteVersion?.(id)
     setBusyDel('')
-    if (res?.ok) { addLog(`Version eliminada: ${id}`); refreshInstalled() }
+    if (res?.ok) {
+      addLog(`Version eliminada: ${id}`)
+      refreshInstalled()
+      window.api?.getInstalledVersionsFull?.().then((l:any)=> set({ installedVersions: l||[] })).catch(()=>{})
+    }
     else addLog(`No se pudo eliminar ${id}: ${res?.error}`)
   }
 
