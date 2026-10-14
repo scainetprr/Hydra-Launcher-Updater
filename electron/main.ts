@@ -4,7 +4,7 @@ import fs from 'fs'
 import os from 'os'
 import { fileURLToPath } from 'url'
 import axios from 'axios'
-import { execSync } from 'child_process'
+import { execSync, exec } from 'child_process'
 import net from 'net'
 import { autoUpdater } from 'electron-updater'
 import { discordSetActivity, discordClearActivity, discordShutdown } from './discord'
@@ -98,25 +98,231 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(() => {
-  createWindow()
-  setTimeout(() => setIdlePresence(), 3500)
-  // Auto-updater en producción
-  if (!process.env.VITE_DEV_SERVER_URL) {
+// --- MINI SPLASH (estilo TLauncher): red + actualizaciones + versiones antes de abrir ---
+let splashWin: BrowserWindow | null = null
+let startupUpdateCheck = false
+let splashUpdateResolved = false
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+function splashSetStep(step: string, state: 'run' | 'done' | 'err', text?: string) {
+  if (!splashWin || splashWin.isDestroyed()) return
+  const js = `window.__setStep && window.__setStep(${JSON.stringify(step)},${JSON.stringify(state)},${text !== undefined ? JSON.stringify(text) : 'null'}); true`
+  splashWin.webContents.executeJavaScript(js).catch(() => {})
+}
+
+async function checkNetworkOnline(): Promise<boolean> {
+  const hosts = ['https://github.com', 'https://api.modrinth.com']
+  for (const h of hosts) {
+    try { await axios.head(h, { timeout: 4000, validateStatus: () => true }); return true } catch {}
+  }
+  return false
+}
+
+function primaryIfaceName(): string {
+  try {
+    const ifs = os.networkInterfaces()
+    for (const name of Object.keys(ifs)) {
+      const list = ifs[name] || []
+      if (list.some(i => !i.internal && i.family === 'IPv4')) return name
+    }
+  } catch {}
+  return ''
+}
+
+function scanInstalledVersionCount(): number {
+  try {
+    const vDir = path.join(ROOT, 'versions')
+    if (!fs.existsSync(vDir)) return 0
+    return fs.readdirSync(vDir).filter(d => {
+      try { return fs.statSync(path.join(vDir, d)).isDirectory() } catch { return false }
+    }).length
+  } catch { return 0 }
+}
+
+function createMiniSplash(): BrowserWindow {
+  const sp = new BrowserWindow({
+    width: 430, height: 262, frame: false, resizable: false, movable: false,
+    center: true, show: false, alwaysOnTop: true, skipTaskbar: true,
+    backgroundColor: '#07070a',
+    webPreferences: { contextIsolation: true, nodeIntegration: false }
+  })
+  sp.setMenuBarVisibility(false)
+
+  let logoTag = '<div class="logo fallback">◆</div>'
+  const logoCandidates = [
+    path.join(__dirname, '../dist/hydra-logo.png'),
+    path.join(process.cwd(), 'dist/hydra-logo.png'),
+    path.join(process.cwd(), 'public/hydra-logo.png'),
+  ]
+  for (const p of logoCandidates) {
+    try {
+      if (fs.existsSync(p)) {
+        logoTag = `<img class="logo" src="data:image/png;base64,${fs.readFileSync(p).toString('base64')}">`
+        break
+      }
+    } catch {}
+  }
+
+  let ver = ''
+  try { ver = app.getVersion() } catch {}
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:linear-gradient(145deg,#07070a 0%,#0b0b14 50%,#07070a 100%);color:#fff;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;-webkit-app-region:drag;user-select:none;position:relative}
+.logo{width:56px;height:56px;border-radius:14px;background:#000;border:1px solid rgba(255,255,255,.1);padding:7px;object-fit:contain;box-shadow:0 0 34px rgba(124,58,237,.55)}
+.logo.fallback{display:grid;place-items:center;font-size:22px;color:#a78bfa}
+.t1{margin-top:10px;font-size:17px;font-weight:900;letter-spacing:.5px;background:linear-gradient(90deg,#a78bfa,#22d3ee,#f472b6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.t2{margin-top:3px;font-size:8.5px;letter-spacing:2.5px;color:rgba(255,255,255,.42)}
+.badge{position:absolute;top:9px;right:12px;font-size:9.5px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.6)}
+.rows{margin-top:15px;width:300px;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;align-items:center;gap:9px;font-size:11px;color:rgba(255,255,255,.75)}
+.ico{width:13px;height:13px;border-radius:50%;flex:0 0 13px;position:relative}
+.row[data-s=run] .ico{border:2px solid rgba(255,255,255,.15);border-top-color:#a78bfa;animation:sp .8s linear infinite}
+.row[data-s=done] .ico{background:rgba(52,211,153,.16);border:1px solid rgba(52,211,153,.55)}
+.row[data-s=done] .ico:after{content:'\\2713';position:absolute;inset:0;display:grid;place-items:center;font-size:8px;color:#34d399;font-weight:700}
+.row[data-s=err] .ico{background:rgba(248,113,113,.16);border:1px solid rgba(248,113,113,.55)}
+.row[data-s=err] .ico:after{content:'!';position:absolute;inset:0;display:grid;place-items:center;font-size:8px;color:#f87171;font-weight:700}
+@keyframes sp{to{transform:rotate(360deg)}}
+.bar{margin-top:15px;width:300px;height:4px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden}
+.fill{height:100%;width:4%;background:linear-gradient(90deg,#7c3aed,#22d3ee);transition:width .45s ease;box-shadow:0 0 8px rgba(124,58,237,.8)}
+.stat{margin-top:6px;width:300px;display:flex;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,.45)}
+</style></head><body>
+${logoTag}
+<div class="t1">HYDRA LAUNCHER</div>
+<div class="t2">CORTA UNA CABEZA • NACEN DOS</div>
+<div class="badge">v${ver}</div>
+<div class="rows">
+  <div class="row" id="s-wifi" data-s="run"><span class="ico"></span><span class="tx">Verificando conexión a internet…</span></div>
+  <div class="row" id="s-update" data-s="run"><span class="ico"></span><span class="tx">Buscando actualizaciones…</span></div>
+  <div class="row" id="s-versions" data-s="run"><span class="ico"></span><span class="tx">Escaneando .minecraft/versions…</span></div>
+</div>
+<div class="bar"><div class="fill" id="fill"></div></div>
+<div class="stat"><span id="stat">Preparando…</span><span id="pct">0%</span></div>
+<script>
+var done=0;
+window.__setStep=function(id,st,tx){
+  var r=document.getElementById('s-'+id); if(!r)return;
+  r.setAttribute('data-s',st);
+  if(tx!==null&&tx!==undefined){var t=r.querySelector('.tx'); if(t)t.textContent=tx;}
+  if((st==='done'||st==='err')&&!r.dataset.f){
+    r.dataset.f='1'; done++;
+    var pct=Math.min(100,Math.round(done/3*100));
+    document.getElementById('fill').style.width=pct+'%';
+    document.getElementById('pct').textContent=pct+'%';
+    if(done>=3)document.getElementById('stat').textContent='¡Listo!';
+  }
+};
+</script></body></html>`
+
+  sp.loadURL('data:text/html;base64,' + Buffer.from(html, 'utf-8').toString('base64'))
+  sp.once('ready-to-show', () => { try { if (!sp.isDestroyed()) sp.show() } catch {} })
+  splashWin = sp
+  return sp
+}
+
+async function runStartupSplashChecks(sp: BrowserWindow, isDev: boolean): Promise<void> {
+  splashWin = sp
+  const t0 = Date.now()
+
+  // 1) WiFi / internet (en paralelo con el resto)
+  const wifiP = (async () => {
+    const online = await checkNetworkOnline()
+    if (online) {
+      const iface = primaryIfaceName()
+      splashSetStep('wifi', 'done', iface ? `Conectado — ${iface}` : 'Conectado a internet')
+    } else {
+      splashSetStep('wifi', 'err', 'Sin conexión a internet')
+    }
+    return online
+  })()
+
+  // 2) Versiones en .minecraft/versions (lectura local, instantánea)
+  const versionsP = (async () => {
+    const n = scanInstalledVersionCount()
+    splashSetStep('versions', n > 0 ? 'done' : 'done',
+      n > 0 ? `${n} versión${n === 1 ? '' : 'es'} instalada${n === 1 ? '' : 's'}` : 'Sin versiones instaladas')
+    return n
+  })()
+
+  // 3) Actualizaciones
+  const online = await wifiP
+  if (isDev) {
+    splashSetStep('update', 'done', 'Modo desarrollo — omitido')
+  } else if (!online) {
+    splashSetStep('update', 'err', 'Sin conexión — se reintentará')
+  } else {
+    startupUpdateCheck = true
+    splashSetStep('update', 'run', 'Buscando actualizaciones…')
+    const p = autoUpdater.checkForUpdates().then(() => {}).catch(() => {})
+    await Promise.race([p, sleep(8000)])
+    // si en 8s no hubo respuesta (evento update-*), marcar como no verificado
+    if (!splashUpdateResolved) splashSetStep('update', 'err', 'Sin respuesta — se reintentará en 30 min')
+  }
+
+  await versionsP
+
+  const elapsed = Date.now() - t0
+  if (elapsed < 1800) await sleep(1800 - elapsed) // mínimo visible para que no parpadee
+}
+
+app.whenReady().then(async () => {
+  const isDev = !!process.env.VITE_DEV_SERVER_URL
+  const shot = !!process.env.HYDRA_SHOT
+
+  // Auto-updater en producción (registrado antes de cualquier chequeo)
+  if (!isDev) {
     autoUpdater.on('update-available', (info) => {
       console.log('[autoUpdater] update available:', info.version)
       pendingUpdate = { available: info, downloaded: null }
       win?.webContents.send('update-available', info)
+      splashUpdateResolved = true
+      splashSetStep('update', 'done', `Nueva versión v${info.version} disponible`)
+    })
+    autoUpdater.on('update-not-available', () => {
+      splashUpdateResolved = true
+      splashSetStep('update', 'done', `Launcher actualizado (v${app.getVersion()})`)
     })
     autoUpdater.on('update-downloaded', (info) => {
       console.log('[autoUpdater] update downloaded:', info.version)
       pendingUpdate = { available: pendingUpdate?.available || info, downloaded: info }
       win?.webContents.send('update-downloaded', info)
+      splashUpdateResolved = true
+      splashSetStep('update', 'done', `v${info.version} descargada — lista para instalar`)
     })
     autoUpdater.on('error', (err) => {
       console.error('[autoUpdater] error:', err)
+      splashUpdateResolved = true
+      splashSetStep('update', 'err', 'No se pudo verificar (se reintentará)')
     })
-    autoUpdater.checkForUpdatesAndNotify()
+  }
+
+  // Mini splash (estilo TLauncher): WiFi + actualizaciones + versiones antes de abrir
+  let sp: BrowserWindow | null = null
+  if (!shot) {
+    try {
+      sp = createMiniSplash()
+      await runStartupSplashChecks(sp, isDev)
+    } catch (e) { console.error('[splash]', e) }
+  }
+
+  createWindow()
+
+  if (sp) {
+    // cerrar el splash recién cuando la ventana principal ya cargó
+    await new Promise<void>(resolve => {
+      let settled = false
+      const fin = () => { if (!settled) { settled = true; resolve() } }
+      win?.webContents.once('did-finish-load', () => setTimeout(fin, 400))
+      setTimeout(fin, 3000)
+    })
+    try { if (!sp.isDestroyed()) sp.close() } catch {}
+    if (splashWin === sp) splashWin = null
+  }
+
+  setTimeout(() => setIdlePresence(), 3500)
+  // Auto-updater en producción
+  if (!isDev) {
+    if (!startupUpdateCheck) autoUpdater.checkForUpdatesAndNotify().catch(() => {})
     // re-chequeo periodico: si el launcher quedó abierto no debe perderse una actualización
     setInterval(() => { autoUpdater.checkForUpdates().catch(() => {}) }, 30 * 60 * 1000)
     let lastFocusCheck = 0

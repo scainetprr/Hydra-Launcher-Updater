@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v139",
+      "icon": "⚡",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.9 — mini ventana de carga estilo TLauncher con verificación completa",
+      "body": "Ahora al abrir Hydra aparece una mini ventana antes del launcher: verifica tu conexión a internet (WiFi/Ethernet), comprueba si hay actualizaciones y escanea tus versiones instaladas en .minecraft/versions. La ventana principal se abre recién cuando todo está listo."
+    },
+    {
       "id": "v138",
       "icon": "🎨",
       "tag": "Launcher",

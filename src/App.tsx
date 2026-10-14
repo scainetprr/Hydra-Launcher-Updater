@@ -12,74 +12,6 @@ const Setup = lazy(() => import('./pages/Setup'))
 
 declare global { interface Window { api:any } }
 
-function SplashScreen({ onDone }: { onDone: () => void }) {
-  const [stage, setStage] = useState<'check'|'done'>('check')
-  const [pct, setPct] = useState(0)
-  const [updateInfo, setUpdateInfo] = useState<any>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    let progressTimer: NodeJS.Timeout
-    
-    const animateProgress = () => {
-      setPct(p => {
-        if (p >= 90) return p
-        return p + Math.random() * 3
-      })
-    }
-    progressTimer = setInterval(animateProgress, 300)
-
-    const check = async () => {
-      try {
-        const res = await window.api?.checkUpdates?.()
-        if (!cancelled && res?.ok && res?.updateInfo) {
-          setUpdateInfo(res.updateInfo)
-        }
-      } catch {}
-      if (!cancelled) {
-        setPct(100)
-        setStage('done')
-        setTimeout(() => onDone(), 500)
-      }
-    }
-    check()
-
-    return () => {
-      cancelled = true
-      clearInterval(progressTimer)
-    }
-  }, [onDone])
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#050509]" style={{background:'linear-gradient(145deg,#07070a 0%,#0b0b14 50%,#07070a 100%)'}}>
-      <div className="text-center space-y-6 px-6">
-        <img src="hydra-logo.png" className="w-20 h-20 mx-auto rounded-2xl bg-black/60 border border-white/10 object-contain p-2 shadow-[0_0_40px_rgba(124,58,237,0.6)]" alt=""/>
-        <div className="font-display font-black text-2xl tracking-tight bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-          HYDRA LAUNCHER
-        </div>
-        <div className="text-[11px] tracking-[0.2em] text-white/45">CORTA UNA CABEZA • NACEN DOS</div>
-
-        <div className="w-[320px] mx-auto space-y-3">
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full neon-gradient transition-all duration-300 ease-out" style={{width: `${Math.min(pct,100)}%`}}/>
-          </div>
-          <div className="text-xs text-white/60 font-medium flex justify-between">
-            <span>{stage==='check' ? 'Verificando actualizaciones…' : '¡Listo!'}</span>
-            <span>{Math.round(Math.min(pct,100))}%</span>
-          </div>
-        </div>
-
-        {updateInfo && (
-          <div className="mt-4 p-3 bg-violet-600/15 border border-violet-500/25 rounded-xl text-sm space-y-2 animate-fadeIn">
-            <div className="font-bold text-violet-300">🚀 ¡Hay una nueva versión!</div>
-            <div className="text-white/70">v{updateInfo.version} disponible — se descargará en segundo plano.</div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 const nav = [
   { id:'home', label:'Inicio', icon:'◈', desc:'Novedades' },
   { id:'versions', label:'Versiones', icon:'⬢', desc:'Vanilla / Fabric / Forge' },
@@ -93,7 +25,6 @@ const nav = [
 export default function App(){
   const [tab,setTab]=useState('home')
   const [ready,setReady]=useState(false)
-  const [showSplash,setShowSplash]=useState(true)
   const [showSetup,setShowSetup]=useState(false)
   const set = useStore(s=>s.set)
   const addLog = useStore(s=>s.addLog)
@@ -159,7 +90,6 @@ export default function App(){
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#07070a] overflow-hidden select-none">
-      {showSplash && <SplashScreen onDone={()=>setShowSplash(false)}/>}
       {showSetup && <Suspense fallback={null}><Setup onDone={()=>setShowSetup(false)}/></Suspense>}
       <div className="h-8 flex items-center justify-between px-3 bg-[#0c0c11] border-b border-white/[0.06] shrink-0" style={{WebkitAppRegion:'drag'} as any}>
         <div className="flex items-center gap-2.5">
