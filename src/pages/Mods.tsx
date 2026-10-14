@@ -31,6 +31,7 @@ export default function Mods(){
   const [results,setResults]=useState<Record<string,string>>({})
   const [needsKey,setNeedsKey]=useState(false)
   const [cfKeyInput,setCfKeyInput]=useState(config.curseforgeKey||'')
+  const [keySaved,setKeySaved]=useState(false)
   const [packs,setPacks]=useState<any[]>([])
   const [mods,setMods]=useState<string[]>([])
   const [newPackName,setNewPackName]=useState('')
@@ -80,10 +81,13 @@ export default function Mods(){
   }
 
   const saveKey = () => {
-    const next = { ...config, curseforgeKey: cfKeyInput.trim() }
+    const key = cfKeyInput.trim()
+    if (!key || key.length < 10) { addLog('✗ La API key de CurseForge parece demasiado corta — cópiala entera desde console.curseforge.com'); return }
+    const next = { ...config, curseforgeKey: key }
     set({ config: next })
     window.api?.saveConfig?.(next)
-    addLog('API key de CurseForge guardada')
+    addLog(`API key de CurseForge guardada (${key.slice(0,8)}...)`)
+    setKeySaved(true); setTimeout(()=>setKeySaved(false), 4000)
     search(true)
   }
 
@@ -95,12 +99,22 @@ export default function Mods(){
   }
   const deletePack = async (id:string) => {
     if (!confirm('¿Eliminar este modpack?')) return
+    const pack = packs.find(p=>p.id===id)
     const res = await window.api.deleteModpack?.(id)
-    if (res?.ok) { setPacks(packs.filter(p=>p.id!==id)); addLog('Modpack eliminado') }
+    if (res?.ok) {
+      // si era un pack instalado como version, borrar tambien su carpeta versions/<id>
+      if (pack?.versionId) { try { await window.api.deleteVersion?.(pack.versionId) } catch {} }
+      setPacks(packs.filter(p=>p.id!==id)); addLog('Modpack eliminado')
+    }
   }
   const applyPack = async (id:string) => {
     const res = await window.api.applyModpack?.(id)
     if (res?.ok) addLog(`Modpack ${packs.find(p=>p.id===id)?.name}: ${res.mods?.length||0} mods en la lista`)
+  }
+  const playPack = (pack:any) => {
+    if (!pack.versionId) return
+    set({ selectedVersion: pack.versionId })
+    addLog(`Modpack ${pack.name} (${pack.base||'?'}) seleccionado — pulsa JUGAR en Inicio`)
   }
 
   return (
@@ -138,7 +152,7 @@ export default function Mods(){
             <div className="flex flex-wrap items-center gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl p-3">
               <div className="text-xs text-amber-200 flex-1 min-w-[220px]">CurseForge necesita una API key gratis: consiguela en <b>console.curseforge.com</b> (My Account → API Keys) y peguela aqui.</div>
               <input value={cfKeyInput} onChange={e=>setCfKeyInput(e.target.value)} placeholder="$2a$10$..." className="bg-[#14141c] border border-white/10 rounded-lg px-3 py-2 text-xs w-[260px]"/>
-              <button onClick={saveKey} className="bg-white text-black font-bold px-3 py-2 rounded-lg text-xs">Guardar</button>
+              <button onClick={saveKey} className={`font-bold px-3 py-2 rounded-lg text-xs ${keySaved?'bg-emerald-500 text-white':'bg-white text-black'}`}>{keySaved?'✓ Guardada':'Guardar'}</button>
             </div>
           )}
           {error && <div className="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">{error}</div>}
@@ -199,14 +213,23 @@ export default function Mods(){
                     <h3 className="font-bold text-lg truncate">{pack.name}</h3>
                     <button onClick={()=>deletePack(pack.id)} className="text-red-400 hover:text-red-300 p-1" title="Eliminar">🗑</button>
                   </div>
-                  <div className="text-xs text-white/50 mb-3">{new Date(pack.created).toLocaleDateString()} • {pack.mods?.length||0} mods</div>
-                  <button onClick={()=>applyPack(pack.id)} className="w-full neon-gradient text-white font-bold py-2 rounded-xl">⚡ Aplicar</button>
+                  <div className="text-xs text-white/50 mb-3">
+                    {(pack.installedAt||pack.created) ? new Date(pack.installedAt||pack.created).toLocaleDateString() : '—'}
+                    {' • '}
+                    {typeof pack.mods==='number' ? pack.mods : (pack.mods?.length||0)} mods
+                    {pack.versionId && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-300 font-bold">🧩 {pack.base||''}</span>}
+                  </div>
+                  {pack.versionId ? (
+                    <button onClick={()=>playPack(pack)} className="w-full neon-gradient text-white font-bold py-2 rounded-xl">▶ Jugar</button>
+                  ) : (
+                    <button onClick={()=>applyPack(pack.id)} className="w-full neon-gradient text-white font-bold py-2 rounded-xl">⚡ Aplicar</button>
+                  )}
                 </div>
               ))}
             </div>
           )}
           <div className="glass rounded-xl p-3 text-xs text-white/50 border border-white/10">
-            Los packs descargados de Modrinth/CurseForge se instalan directo en <code className="bg-black/30 px-1 rounded">mods/</code> con sus overrides. Los packs propios guardan la lista de tus mods actuales.
+            Los packs descargados de Modrinth/CurseForge se instalan como <b>versiones aisladas</b> en <code className="bg-black/30 px-1 rounded">versions/&lt;pack&gt;/</code> con sus propios mods y config — no tocan tus mods de <code className="bg-black/30 px-1 rounded">mods/</code>. Los packs propios guardan la lista de tus mods actuales.
           </div>
         </div>
       )}

@@ -1,6 +1,14 @@
 {
-  "updated": "2026-10-12",
+  "updated": "2026-10-13",
   "posts": [
+    {
+      "id": "v134",
+      "icon": "🧩",
+      "tag": "Launcher",
+      "date": "13/10/2026",
+      "title": "Hydra v1.3.4 — modpacks aislados y fixes",
+      "body": "Los modpacks ahora se ejecutan en su propia instancia: ya no se mezclan con tus mods y el crash por duplicados desaparece. \"Mis modpacks\" con fecha y contador correctos, botón Jugar directo y confirmación al guardar la API key de CurseForge."
+    },
     {
       "id": "v133",
       "icon": "🔄",

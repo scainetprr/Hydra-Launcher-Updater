@@ -586,6 +586,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     // Modpack Hydra: la versión seleccionada es una carpeta creada por el instalador de packs
     let mcVersion: string = version
     let packLoader = ''
+    let packInstanceDir = ''
     try {
       const packJson = path.join(root, 'versions', version, `${version}.json`)
       if (fs.existsSync(packJson)) {
@@ -594,30 +595,22 @@ ipcMain.handle('launch', async (_e, opts:any) => {
           const mp = pj.hydraModpack
           mcVersion = mp.base || version
           packLoader = mp.loader || 'vanilla'
-          send(`  modpack "${mp.name}" → Minecraft ${mcVersion}, loader ${packLoader}`)
-          // Activar mods del pack: quitar mods sincronizados por otros packs y copiar los de este
+          packInstanceDir = path.join(root, 'versions', version)
+          send(`  modpack "${mp.name}" → Minecraft ${mcVersion}, loader ${packLoader}, instancia aislada ${version}`)
+          // Limpieza única: quitar mods que versiones anteriores (<=1.3.3) copiaron al .minecraft global
           const vRoot = path.join(root, 'versions')
           const globalMods = path.join(root, 'mods')
+          let cleaned = 0
           try {
             for (const d of fs.readdirSync(vRoot)) {
               const mk = path.join(vRoot, d, '.hydra-synced.json')
               if (!fs.existsSync(mk)) continue
               const prev: string[] = JSON.parse(fs.readFileSync(mk, 'utf-8'))
-              for (const f of prev) { try { fs.rmSync(path.join(globalMods, f), { force: true }) } catch {} }
+              for (const f of prev) { try { fs.rmSync(path.join(globalMods, f), { force: true }); cleaned++ } catch {} }
+              try { fs.rmSync(mk, { force: true }) } catch {}
             }
           } catch {}
-          const packMods = path.join(vRoot, version, 'mods')
-          const synced: string[] = []
-          if (fs.existsSync(packMods)) {
-            fs.mkdirSync(globalMods, { recursive: true })
-            for (const f of fs.readdirSync(packMods)) {
-              if (!f.endsWith('.jar')) continue
-              fs.copyFileSync(path.join(packMods, f), path.join(globalMods, f))
-              synced.push(f)
-            }
-          }
-          try { fs.writeFileSync(path.join(vRoot, version, '.hydra-synced.json'), JSON.stringify(synced)) } catch {}
-          send(`  ${synced.length} mods del pack activados en /mods`)
+          if (cleaned) send(`  limpiados ${cleaned} mods que versiones anteriores habían copiado a /mods`)
         }
       }
     } catch (e: any) { send(`  aviso modpack: ${String(e?.message || e)}`) }
@@ -704,8 +697,8 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       if (!fs.existsSync(javaPath)) throw new Error(`Java no encontrado: ${javaPath}`)
     }
 
-    // Como launcher normal: usa .minecraft directo, no instances aisladas, para compartir worlds/resourcepacks
-    const gameDir = root // .minecraft
+    // Instancia aislada para modpacks: su propio gameDir (mods, config, saves) — no toca .minecraft global
+    const gameDir = packInstanceDir || root
     if (!fs.existsSync(gameDir)) fs.mkdirSync(gameDir, { recursive: true })
 
     let customVersion: string | null = null
@@ -722,10 +715,10 @@ ipcMain.handle('launch', async (_e, opts:any) => {
 
     // diagnÃ³stico visible en Ajustes â†’ Logs: quÃ© custom se va a usar y cuÃ¡ntos mods hay
     try {
-      const modsDir = path.join(root, 'mods')
+      const modsDir = packInstanceDir ? path.join(packInstanceDir, 'mods') : path.join(root, 'mods')
       const modsCount = fs.existsSync(modsDir) ? fs.readdirSync(modsDir).filter(f => f.endsWith('.jar')).length : 0
-      send(`  custom=${customVersion || '(vanilla, sin custom)'} loader=${opts.loader}`)
-      send(`  mods en /mods: ${modsCount} jars${customVersion ? '' : ' (vanilla ignora mods)'}`)
+      send(`  custom=${customVersion || '(vanilla, sin custom)'} loader=${effLoader}`)
+      send(`  mods en ${packInstanceDir ? 'instancia del pack' : '/mods'}: ${modsCount} jars${customVersion ? '' : ' (vanilla ignora mods)'}`)
       if (customVersion) {
         const cj = path.join(root, 'versions', customVersion, `${customVersion}.json`)
         if (fs.existsSync(cj)) {
@@ -936,7 +929,7 @@ ipcMain.handle('browse-content', async (_e, opts: any) => {
   try {
     if (source === 'curseforge') {
       const key = await getCurseForgeKey()
-      if (!key) return { ok: false, needsKey: true, error: 'Falta la API key de CurseForge (Ajustes -> Integraciones)' }
+      if (!key) return { ok: false, needsKey: true, error: 'Falta la API key de CurseForge — consiguela gratis en console.curseforge.com y peguela en el recuadro amarillo de arriba' }
       const headers = { 'x-api-key': key, Accept: 'application/json' }
       const params: any = {
         gameId: 432,
@@ -1095,11 +1088,11 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
         }
       }
 
-      // Overrides (config, resourcepacks...) → .minecraft global
+      // Overrides (config, resourcepacks, options...) → dentro de la instancia del pack (NO al .minecraft global)
       const overrides = path.join(tempDir, 'overrides')
       if (fs.existsSync(overrides)) {
-        try { fs.cpSync(overrides, ROOT, { recursive: true }) } catch {}
-        send('  overrides aplicados')
+        try { fs.cpSync(overrides, packDir, { recursive: true }) } catch {}
+        send('  overrides aplicados a la instancia del pack')
       }
 
       // JSON de version: el pack aparece en Instaladas y el launch lo detecta
