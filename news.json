@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v138",
+      "icon": "🎨",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.8 — descripción real del pack y secciones de shaders, mods y mundos",
+      "body": "La ficha del modpack ahora muestra su descripción formateada de verdad (imágenes, videos y tablas). Además se agregaron pestañas para ver e instalar los mods del pack, shaders, resource packs y mundos compatibles, al estilo TLauncher."
+    },
+    {
       "id": "v137",
       "icon": "🚀",
       "tag": "Launcher",

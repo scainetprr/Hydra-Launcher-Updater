@@ -1038,13 +1038,15 @@ const CF_LOADER: Record<string, number> = { forge: 1, fabric: 3, quilt: 4, neofo
 ipcMain.handle('browse-content', async (_e, opts: any) => {
   const { source, query, gameVersion, loader, type, limit = 20, offset = 0, index = 'downloads' } = opts || {}
   try {
+    const isMainType = !type || type === 'mod' || type === 'modpack'
     if (source === 'curseforge') {
       const key = await getCurseForgeKey()
       if (!key) return { ok: false, needsKey: true, error: 'Falta la API key de CurseForge — consiguela gratis en console.curseforge.com y peguela en el recuadro amarillo de arriba' }
       const headers = { 'x-api-key': key, Accept: 'application/json' }
+      const CF_CLASS: Record<string, number> = { mod: 6, modpack: 4471, shader: 6552, resourcepack: 12, world: 17 }
       const params: any = {
         gameId: 432,
-        classId: type === 'modpack' ? 4471 : 6,
+        classId: CF_CLASS[type] ?? 6,
         pageSize: Math.min(Number(limit) || 20, 50),
         index: Number(offset) || 0,
         sortField: index === 'recent' ? 3 : 6,
@@ -1052,7 +1054,7 @@ ipcMain.handle('browse-content', async (_e, opts: any) => {
       }
       if (query) params.searchFilter = query
       if (gameVersion) params.gameVersion = gameVersion
-      if (loader && loader !== 'vanilla') params.modLoaderType = CF_LOADER[loader] || 0
+      if (loader && loader !== 'vanilla' && isMainType) params.modLoaderType = CF_LOADER[loader] || 0
       const { data } = await axios.get('https://api.curseforge.com/v1/mods/search', { params, headers, timeout: 15000 })
       return {
         ok: true,
@@ -1065,9 +1067,9 @@ ipcMain.handle('browse-content', async (_e, opts: any) => {
         }))
       }
     }
-    const facets: string[][] = [[`project_type:${type === 'modpack' ? 'modpack' : 'mod'}`]]
+    const facets: string[][] = [[`project_type:${type || 'mod'}`]]
     if (gameVersion) facets.push([`versions:${gameVersion}`])
-    if (loader && loader !== 'vanilla') facets.push([`categories:${loader}`])
+    if (loader && loader !== 'vanilla' && isMainType) facets.push([`categories:${loader}`])
     const { data } = await axios.get('https://api.modrinth.com/v2/search', {
       params: { query: query || '', limit, offset, index: index === 'recent' ? 'updated' : index, facets: JSON.stringify(facets) },
       timeout: 15000
@@ -1090,9 +1092,11 @@ ipcMain.handle('browse-content', async (_e, opts: any) => {
 ipcMain.handle('install-content', async (_e, opts: any) => {
   const { source, id, type, gameVersion, loader, versionId, fileId } = opts || {}
   const send = (m: string) => { console.log('[install]', m); win?.webContents.send('launch-log', m) }
-  const modsDir = path.join(ROOT, 'mods')
+  const isMainType = !type || type === 'mod' || type === 'modpack'
+  const destName = type === 'shader' ? 'shaderpacks' : type === 'resourcepack' ? 'resourcepacks' : type === 'world' ? 'saves' : 'mods'
+  const contentDir = path.join(ROOT, destName)
   try {
-    if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true })
+    if (!fs.existsSync(contentDir)) fs.mkdirSync(contentDir, { recursive: true })
     let fileUrl = '', fileName = ''
     const cfHeaders = { 'x-api-key': await getCurseForgeKey(), Accept: 'application/json' }
     if (source === 'modrinth') {
@@ -1105,7 +1109,7 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
       } else {
         const params: any = {}
         if (gameVersion) params.game_versions = JSON.stringify([gameVersion])
-        if (loader && loader !== 'vanilla') params.loaders = JSON.stringify([loader])
+        if (loader && loader !== 'vanilla' && isMainType) params.loaders = JSON.stringify([loader])
         const { data: versions } = await axios.get(`https://api.modrinth.com/v2/project/${id}/version`, { params, timeout: 20000 })
         if (!versions?.length) return { ok: false, error: `Sin versiones compatibles (${gameVersion || '*'} / ${loader || '*'})` }
         const v = versions[0]
@@ -1126,7 +1130,7 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
           params: {
             pageSize: 50, index: 0,
             gameVersion: gameVersion || undefined,
-            modLoaderType: loader && loader !== 'vanilla' ? CF_LOADER[loader] : undefined
+            modLoaderType: loader && loader !== 'vanilla' && isMainType ? CF_LOADER[loader] : undefined
           },
           headers: cfHeaders, timeout: 20000
         })
@@ -1242,9 +1246,9 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
       return { ok: true, packName, packId, installed, skipped, baseVersion, loader: packLoader }
     }
 
-    const dest = path.join(modsDir, path.basename(fileName))
+    const dest = path.join(contentDir, path.basename(fileName))
     fs.writeFileSync(dest, buf)
-    send(`  Instalado en mods/: ${fileName} (${Math.round(buf.length / 1024)} KB)`)
+    send(`  Instalado en ${destName}/: ${fileName} (${Math.round(buf.length / 1024)} KB)`)
     return { ok: true, filename: path.basename(fileName), size: buf.length }
   } catch (e: any) {
     const msg = String(e?.response?.data?.message || e?.message || e)
@@ -1281,6 +1285,25 @@ ipcMain.handle('get-content-detail', async (_e, opts: any) => {
           kind: v.version_type || 'release'
         }
       })
+      // modlist del pack: dependencias de la version mas reciente resueltas por lote
+      let modsList: any[] = []
+      try {
+        const deps: any[] = (versionsRaw[0]?.dependencies || []).filter((d: any) => d.project_id && d.dependency_type !== 'incompatible')
+        const ids = [...new Set(deps.map((d: any) => d.project_id))] as string[]
+        const depMap = new Map(deps.map((d: any) => [d.project_id, d]))
+        const projects: any[] = []
+        for (let i = 0; i < ids.length; i += 50) {
+          try {
+            const { data } = await axios.get('https://api.modrinth.com/v2/projects', { params: { ids: JSON.stringify(ids.slice(i, i + 50)) }, timeout: 15000 })
+            projects.push(...(data || []))
+          } catch {}
+        }
+        modsList = projects.slice(0, 150).map((p: any) => ({
+          id: p.id, versionId: String(depMap.get(p.id)?.version_id || ''), title: p.title || p.slug || p.id,
+          icon: p.icon_url || '', downloads: p.downloads || 0,
+          description: p.description || '', kind: depMap.get(p.id)?.dependency_type || 'required'
+        }))
+      } catch {}
       return {
         ok: true,
         project: {
@@ -1291,7 +1314,7 @@ ipcMain.handle('get-content-detail', async (_e, opts: any) => {
           categories: (p.categories || []).slice(0, 8),
           sourceUrl: p.source_url || p.project_url || ''
         },
-        versions
+        versions, modsList
       }
     }
     // CurseForge
@@ -1321,18 +1344,46 @@ ipcMain.handle('get-content-detail', async (_e, opts: any) => {
         }
       })
       .sort((a: any, b: any) => b.date - a.date)
+    // descripcion completa (el objeto mod no la trae)
+    let cfBody = ''
+    try {
+      const { data: dsc } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/description`, { headers: h, timeout: 15000 })
+      if (typeof dsc?.data === 'string') cfBody = dsc.data
+    } catch {}
+    // modlist: dependencias del primer archivo resueltas en lote
+    let modsList: any[] = []
+    try {
+      const rels: any[] = (files[0]?.dependencies || []).filter((d: any) => d.modId && [1, 2, 3, 6].includes(d.relationType))
+      const ids = [...new Set(rels.map((d: any) => d.modId))] as number[]
+      const relMap = new Map(rels.map((d: any) => [d.modId, d]))
+      const found: any[] = []
+      for (let i = 0; i < ids.length; i += 100) {
+        try {
+          const { data } = await axios.post('https://api.curseforge.com/v1/mods', { modIds: ids.slice(i, i + 100) }, { headers: { ...h, 'Content-Type': 'application/json' }, timeout: 15000 })
+          found.push(...(data?.data || []))
+        } catch {}
+      }
+      modsList = found.slice(0, 150).map((mm: any) => ({
+        id: String(mm.id), versionId: '', title: mm.name || String(mm.id),
+        icon: mm.logo?.thumbnailUrl || mm.logo?.url || '',
+        downloads: mm.downloadCount || 0, description: mm.summary || '',
+        kind: relMap.get(mm.id)?.relationType === 2 ? 'optional' : 'required',
+        website: mm.links?.websiteUrl || ''
+      }))
+    } catch {}
     return {
       ok: true,
       project: {
         title: mod.name, author: mod.authors?.[0]?.name || fallbackAuthor || '',
-        summary: mod.summary || '', body: mod.description || '', bodyType: 'html',
+        summary: mod.summary || '', body: cfBody || mod.summary || '',
+        bodyType: cfBody.includes('<') ? 'html' : 'md',
         icon: mod.logo?.thumbnailUrl || mod.logo?.url || '',
         downloads: mod.downloadCount || 0,
         updated: mod.dateModified ? Date.parse(mod.dateModified) : 0,
         categories: (mod.categories || []).map((c: any) => c.name).slice(0, 8),
         sourceUrl: mod.links?.websiteUrl || ''
       },
-      versions
+      versions, modsList
     }
   } catch (e: any) {
     return { ok: false, error: String(e?.response?.data?.message || e?.message || e) }

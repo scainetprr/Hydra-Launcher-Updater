@@ -1,4 +1,4 @@
-; ============================================================================
+﻿; ============================================================================
 ; Hydra Launcher - Inno Setup Script
 ; Genera instalador profesional .exe tipo TLauncher
 ; ============================================================================
@@ -7,7 +7,7 @@
 ; ============================================================================
 
 #define MyAppName "Hydra Launcher"
-#define MyAppVersion "1.3.7"
+#define MyAppVersion "1.3.8"
 #define MyAppPublisher "Hydra Studio (scainetprr)"
 #define MyAppURL "https://discord.gg/qyyREajJgC"
 #define MyAppExeName "Hydra Launcher.exe"
