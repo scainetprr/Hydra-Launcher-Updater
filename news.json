@@ -2,6 +2,14 @@
   "updated": "2026-10-13",
   "posts": [
     {
+      "id": "v135",
+      "icon": "⚙️",
+      "tag": "Launcher",
+      "date": "13/10/2026",
+      "title": "Hydra v1.3.5 — setup inteligente y Java automático",
+      "body": "La primera vez que abres Hydra, un panel analiza tu PC y, si no tienes Java, instala Adoptium Temurin automáticamente. Se acabó el \"Minecraft no se abre\": ahora Hydra gestiona todo por ti."
+    },
+    {
       "id": "v134",
       "icon": "🧩",
       "tag": "Launcher",

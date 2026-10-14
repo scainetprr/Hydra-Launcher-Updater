@@ -184,7 +184,7 @@ function readConfigFile(): any {
 }
 
 ipcMain.handle('get-config', () => {
-  const base = { ram: { min: '1G', max: '4G' }, javaPath: '', resolution: { w: 854, h: 480 }, servers: defaultServers.map(s=>({...s})), serversVersion: SERVERS_VERSION, cleanupOldOnUpdate: true, uiZoom: 0.8, curseforgeKey: '', lastVersion: '26.2', lastLoader: 'vanilla', lastAccountUuid: '' }
+  const base = { ram: { min: '1G', max: '4G' }, javaPath: '', resolution: { w: 854, h: 480 }, servers: defaultServers.map(s=>({...s})), serversVersion: SERVERS_VERSION, cleanupOldOnUpdate: true, uiZoom: 0.8, curseforgeKey: '', lastVersion: '26.2', lastLoader: 'vanilla', lastAccountUuid: '', setupDone: false }
   const cfg = readConfigFile()
   if (!cfg) return base
   if (!cfg.lastVersion) cfg.lastVersion = '26.2'
@@ -197,6 +197,8 @@ ipcMain.handle('get-config', () => {
   if (cfg.cleanupOldOnUpdate === undefined) cfg.cleanupOldOnUpdate = true
   if (!cfg.uiZoom) cfg.uiZoom = 0.8
   if (cfg.curseforgeKey === undefined) cfg.curseforgeKey = ''
+  // migracion: usuarios con config previa ya usan el launcher → no mostrar setup de 1ra vez
+  if (cfg.setupDone === undefined) cfg.setupDone = true
   return cfg
 })
 ipcMain.handle('save-config', (_e, c) => { fs.writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2)); setIdlePresence(c); return true })
@@ -333,8 +335,116 @@ async function installForge(mcVersion: string, send: (m:string)=>void): Promise<
 }
 
 // --- JAVA detect (usa JAVA_HOME y Adoptium) ---
+// --- JAVA GESTIONADO (Adoptium Temurin auto-descargado por Hydra) ---
+const MANAGED_JAVA_DIR = path.join(HYDRA_DIR, 'java')
+
+function getManagedJavaExe(major?: number): string {
+  try {
+    if (!fs.existsSync(MANAGED_JAVA_DIR)) return ''
+    for (const d of fs.readdirSync(MANAGED_JAVA_DIR)) {
+      if (major && d !== String(major)) continue
+      const p = path.join(MANAGED_JAVA_DIR, d, 'bin', 'java.exe')
+      if (fs.existsSync(p)) return p
+    }
+  } catch {}
+  return ''
+}
+
+function javaVersionStr(jp: string): string {
+  try {
+    // java -version escribe a stderr → redirigir 2>&1
+    const out = execSync(`"${jp}" -version 2>&1`, { encoding: 'utf-8' })
+    const m = out.match(/version "([^"]+)"/) || out.match(/openjdk ([^\s"]+)/i)
+    return m ? m[1] : ''
+  } catch { return '' }
+}
+
+function javaMajorOf(jp: string): number {
+  try {
+    const out = execSync(`"${jp}" -version 2>&1`, { encoding: 'utf-8' })
+    const m = out.match(/version "(\d+)(?:[._]|")/) || out.match(/openjdk (\d+)/i) || out.match(/(\d+)\.\d+\.\d+/)
+    if (m) { const v = parseInt(m[1], 10); return v === 1 ? 8 : v } // "1.8.0" → Java 8
+  } catch {}
+  return 0
+}
+
+// MC 1.20.5+ necesita Java 21; 1.18–1.20.4 Java 17; más viejo Java 8
+function mcNeedsJavaMajor(ver: string): number {
+  const m = String(ver).match(/^1\.(\d+)/)
+  if (!m) return 21 // snapshots / 26.x modernos
+  const minor = parseInt(m[1], 10)
+  if (minor > 20) return 21
+  if (minor === 20) {
+    const patch = parseInt(String(ver).split('.')[2] || '0', 10)
+    return patch >= 5 ? 21 : 17
+  }
+  if (minor >= 18) return 17
+  return 8
+}
+
+async function installManagedJava(major: number, send: (m: string) => void): Promise<{ ok: boolean; javaPath: string; error?: string }> {
+  try {
+    const existing = getManagedJavaExe(major)
+    if (existing) return { ok: true, javaPath: existing }
+    const dest = path.join(MANAGED_JAVA_DIR, String(major))
+    fs.mkdirSync(dest, { recursive: true })
+    const url = `https://api.adoptium.net/v3/binary/latest/${major}/ga/windows/x64/jre/hotspot/normal/eclipse`
+    send(`  Descargando Adoptium Temurin ${major} JRE (~45 MB), puede tardar segun tu internet...`)
+    const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 600000 })
+    const zipPath = path.join(HYDRA_DIR, `temurin-${major}.zip`)
+    fs.writeFileSync(zipPath, Buffer.from(res.data))
+    send('  Extrayendo Java...')
+    const AdmZip = (await import('adm-zip')).default
+    const tmp = path.join(HYDRA_DIR, `java-tmp-${major}`)
+    try { fs.rmSync(tmp, { recursive: true, force: true }) } catch {}
+    new AdmZip(zipPath).extractAllTo(tmp, true)
+    const sub = fs.readdirSync(tmp).find(e => fs.statSync(path.join(tmp, e)).isDirectory())
+    if (!sub) throw new Error('El paquete de Java vino vacio')
+    try { fs.rmSync(dest, { recursive: true, force: true }) } catch {}
+    fs.cpSync(path.join(tmp, sub), dest, { recursive: true })
+    try { fs.rmSync(tmp, { recursive: true, force: true }) } catch {}
+    try { fs.rmSync(zipPath, { force: true }) } catch {}
+    const javaPath = path.join(dest, 'bin', 'java.exe')
+    if (!fs.existsSync(javaPath)) throw new Error('java.exe no encontrado tras extraer')
+    send(`  ✓ Java ${major} instalado (${javaVersionStr(javaPath) || major})`)
+    return { ok: true, javaPath }
+  } catch (e: any) {
+    const msg = String(e?.response?.status ? `HTTP ${e.response.status} en la descarga` : (e?.message || e))
+    return { ok: false, javaPath: '', error: msg }
+  }
+}
+
+ipcMain.handle('get-pc-scan', async () => {
+  const managed = getManagedJavaExe()
+  const all = findJavaCandidates()
+  const system = all.filter(p => !p.startsWith(MANAGED_JAVA_DIR))
+  let version = '', major = 0
+  if (all.length) { version = javaVersionStr(all[0]); major = javaMajorOf(all[0]) }
+  let gpu = ''
+  try {
+    gpu = execSync('powershell -NoProfile -Command "(Get-CimInstance Win32_VideoController | Select-Object -First 1 -ExpandProperty Name)"', { encoding: 'utf-8', timeout: 8000 }).trim().split('\n')[0].trim()
+  } catch {}
+  return {
+    ram: { totalGB: Math.floor(os.totalmem() / (1024 * 1024 * 1024)), freeGB: Math.floor(os.freemem() / (1024 * 1024 * 1024)) },
+    java: { found: all.length > 0, system, managed, path: all[0] || '', version, major },
+    gpu
+  }
+})
+
+ipcMain.handle('install-java', async (_e, opts: any) => {
+  const major = Number(opts?.major) || 21
+  const send = (m: string) => { try { win?.webContents.send('launch-log', m) } catch {} }
+  return await installManagedJava(major, send)
+})
+
+ipcMain.handle('open-external', (_e, url: string) => {
+  try { shell.openExternal(url); return true } catch { return false }
+})
+
 function findJavaCandidates(): string[] {
   const c: string[] = []
+  const managed = getManagedJavaExe()
+  if (managed) c.push(managed)
   const envJava = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java.exe') : ''
   if (envJava && fs.existsSync(envJava)) c.push(envJava)
   const adoptium = 'C:\\Program Files\\Eclipse Adoptium'
@@ -669,28 +779,27 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       send(`  auth offline ${auth.name} ${auth.uuid} (v3) â€” para servidores no-premium pon online-mode=false`)
     }
 
-    // java: auto-detect si no viene
+    // java: auto-detect si no viene; fallback al Java gestionado de Hydra (Adoptium auto-descargado)
     let javaPath: string = opts.javaPath || ''
     if (!javaPath) {
       const cands = findJavaCandidates()
       send(`  javas detectadas: ${cands.join(' | ') || 'ninguna'}`)
       if (cands.length) {
-        // preferir Java 21 para 1.20.5+ / 26.x, Java 17 para 1.18+
-        javaPath = cands[0]
-        // intentar elegir la mÃ¡s nueva si hay varias
-        try {
-          let best = cands[0]; let bestVer = 0
-          for (const p of cands) {
-            try {
-              const out = execSync(`"${p}" -version`, { encoding:'utf-8' }).toString()
-              const m = out.match(/version "(\\d+)\\./) || out.match(/(\\d+)\\./)
-              const ver = m ? parseInt(m[1],10) : 0
-              if (ver > bestVer) { bestVer = ver; best = p }
-            } catch {}
-          }
-          javaPath = best
-          send(`  java elegido: ${javaPath}`)
-        } catch {}
+        // elegir la version mas nueva instalada (antes un regex roto siempre elegia la 1ª)
+        let best = cands[0]; let bestVer = 0
+        for (const p of cands) {
+          const ver = javaMajorOf(p)
+          if (ver > bestVer) { bestVer = ver; best = p }
+        }
+        javaPath = best
+        send(`  java elegido: ${javaPath} (Java ${bestVer || '?'})`)
+      } else {
+        // Sin Java en el PC → Hydra lo instala sola (Adoptium gestionado)
+        const need = mcNeedsJavaMajor(mcVersion)
+        send(`  ⚠ Sin Java detectado — instalando Adoptium Temurin ${need} automaticamente...`)
+        const inst = await installManagedJava(need, send)
+        if (!inst.ok) throw new Error(`No hay Java en tu PC y la instalacion automatica fallo: ${inst.error}\n\nDescarga Adoptium tu mismo: https://adoptium.net/temurin/releases/ (JRE ${need}, Windows x64)`)
+        javaPath = inst.javaPath
       }
     } else {
       send(`  java custom: ${javaPath}`)
@@ -759,7 +868,9 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     send(`  root=${root}`)
     send(`  launching... (descarga puede tardar la 1ra vez)`)
     const proc: any = await launcher.launch(launchOpts)
-    send(`âœ” Minecraft lanzado PID ${proc?.pid || '?'}`)
+    // MCLC devuelve null en vez de throw cuando no puede arrancar (p.ej. Java incompatible) — antes esto pasaba como exito silencioso
+    if (!proc) throw new Error('Minecraft no pudo arrancar (proceso nulo). Tu Java puede ser incompatible con esta version — si tienes varias javas instaladas, prueba a elegir otra en Ajustes → Java.')
+    send(`Minecraft lanzado PID ${proc?.pid || '?'}`)
     if (proc?.on) {
       proc.on('close', (code:number)=> {
         send(`  proceso cerrado code ${code}`)

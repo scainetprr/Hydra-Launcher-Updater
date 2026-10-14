@@ -8,6 +8,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Accounts = lazy(() => import('./pages/Accounts'))
 const Mods = lazy(() => import('./pages/Mods'))
 const Stats = lazy(() => import('./pages/Stats'))
+const Setup = lazy(() => import('./pages/Setup'))
 
 declare global { interface Window { api:any } }
 
@@ -24,6 +25,7 @@ const nav = [
 export default function App(){
   const [tab,setTab]=useState('home')
   const [ready,setReady]=useState(false)
+  const [showSetup,setShowSetup]=useState(false)
   const set = useStore(s=>s.set)
   const addLog = useStore(s=>s.addLog)
   const config = useStore(s=>s.config)
@@ -47,7 +49,11 @@ export default function App(){
     window.api?.getInstalledVersionsFull?.().then((l:any)=> set({installedVersions: l||[]})).catch(()=>{}).finally(done)
 
     window.api?.getConfig?.().catch(()=>null).then((cData:any)=>{
-      if (cData) set({config:cData})
+      if (cData) {
+        set({config:cData})
+        // setup de 1ra ejecucion: solo si es instalacion nueva (setupDone===false explicito)
+        if (cData.setupDone === false) setShowSetup(true)
+      }
       return window.api?.getAccounts?.().catch(()=>null).then((aData:any)=>{
         if (aData?.length) {
           const savedUuid = cData?.lastAccountUuid || aData[0]?.uuid
@@ -84,6 +90,7 @@ export default function App(){
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#07070a] overflow-hidden select-none">
+      {showSetup && <Suspense fallback={null}><Setup onDone={()=>setShowSetup(false)}/></Suspense>}
       <div className="h-8 flex items-center justify-between px-3 bg-[#0c0c11] border-b border-white/[0.06] shrink-0" style={{WebkitAppRegion:'drag'} as any}>
         <div className="flex items-center gap-2.5">
           <img src="hydra-logo.png" className="w-6 h-6 rounded-md object-contain shadow-[0_0_14px_rgba(124,58,237,0.5)]" alt=""/>

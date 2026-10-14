@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('api', {
   saveConfig: (c:any) => ipcRenderer.invoke('save-config', c),
   // java / ram
   detectJava: () => ipcRenderer.invoke('detect-java'),
+  getPcScan: () => ipcRenderer.invoke('get-pc-scan'),
+  installJava: (opts:any) => ipcRenderer.invoke('install-java', opts),
+  openExternal: (url:string) => ipcRenderer.invoke('open-external', url),
   // servers
   pingServer: (ip:string, port:number) => ipcRenderer.invoke('ping-server', ip, port),
   pingFull: (ip:string, port:number) => ipcRenderer.invoke('ping-full', ip, port),
