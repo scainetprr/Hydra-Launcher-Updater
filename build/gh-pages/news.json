@@ -1,6 +1,14 @@
 {
-  "updated": "2026-10-13",
+  "updated": "2026-10-14",
   "posts": [
+    {
+      "id": "v136",
+      "icon": "📦",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.6 — ficha de modpack y selector de versiones",
+      "body": "Al hacer clic en un modpack del catálogo ahora se abre su ficha completa con descripción, autor y todas sus versiones: elige cuál instalar (release, beta o alpha) en vez de solo la última."
+    },
     {
       "id": "v135",
       "icon": "⚙️",

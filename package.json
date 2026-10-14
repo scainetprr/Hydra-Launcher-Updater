@@ -1,6 +1,6 @@
 {
   "name": "hydra-launcher",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "description": "Hydra Launcher - Launcher original para HyperHard Network y Eventos Hydra",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -86,7 +86,8 @@
       "shortcutName": "Hydra Launcher",
       "menuCategory": "Hydra Studio",
       "runAfterFinish": true,
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "Hydra-Launcher-Setup-v${version}.${ext}",
+      "warningsAsErrors": false
     }
   }
 }

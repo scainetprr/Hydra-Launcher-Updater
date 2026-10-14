@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('api', {
   setZoom: (z:number) => ipcRenderer.invoke('set-zoom', z),
   // mods / modpacks (Modrinth + CurseForge)
   browseContent: (opts:any) => ipcRenderer.invoke('browse-content', opts),
+  getContentDetail: (opts:any) => ipcRenderer.invoke('get-content-detail', opts),
   installContent: (opts:any) => ipcRenderer.invoke('install-content', opts),
   // auth
   loginMicrosoft: () => ipcRenderer.invoke('ms-login'),

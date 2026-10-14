@@ -1088,7 +1088,7 @@ ipcMain.handle('browse-content', async (_e, opts: any) => {
 })
 
 ipcMain.handle('install-content', async (_e, opts: any) => {
-  const { source, id, type, gameVersion, loader } = opts || {}
+  const { source, id, type, gameVersion, loader, versionId, fileId } = opts || {}
   const send = (m: string) => { console.log('[install]', m); win?.webContents.send('launch-log', m) }
   const modsDir = path.join(ROOT, 'mods')
   try {
@@ -1096,31 +1096,46 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
     let fileUrl = '', fileName = ''
     const cfHeaders = { 'x-api-key': await getCurseForgeKey(), Accept: 'application/json' }
     if (source === 'modrinth') {
-      const params: any = {}
-      if (gameVersion) params.game_versions = JSON.stringify([gameVersion])
-      if (loader && loader !== 'vanilla') params.loaders = JSON.stringify([loader])
-      const { data: versions } = await axios.get(`https://api.modrinth.com/v2/project/${id}/version`, { params, timeout: 20000 })
-      if (!versions?.length) return { ok: false, error: `Sin versiones compatibles (${gameVersion || '*'} / ${loader || '*'})` }
-      const v = versions[0]
-      const file = (v.files || []).find((f: any) => f.primary) || v.files?.[0]
-      if (!file) return { ok: false, error: 'Version sin archivos' }
-      fileUrl = file.url; fileName = file.filename
-      send(`  Modrinth: ${fileName} (${v.version_number || ''})`)
+      if (versionId) {
+        const { data: v } = await axios.get(`https://api.modrinth.com/v2/version/${versionId}`, { timeout: 20000 })
+        const file = (v.files || []).find((f: any) => f.primary) || v.files?.[0]
+        if (!file) return { ok: false, error: 'Version sin archivos' }
+        fileUrl = file.url; fileName = file.filename
+        send(`  Modrinth (${v.version_number || versionId}): ${fileName}`)
+      } else {
+        const params: any = {}
+        if (gameVersion) params.game_versions = JSON.stringify([gameVersion])
+        if (loader && loader !== 'vanilla') params.loaders = JSON.stringify([loader])
+        const { data: versions } = await axios.get(`https://api.modrinth.com/v2/project/${id}/version`, { params, timeout: 20000 })
+        if (!versions?.length) return { ok: false, error: `Sin versiones compatibles (${gameVersion || '*'} / ${loader || '*'})` }
+        const v = versions[0]
+        const file = (v.files || []).find((f: any) => f.primary) || v.files?.[0]
+        if (!file) return { ok: false, error: 'Version sin archivos' }
+        fileUrl = file.url; fileName = file.filename
+        send(`  Modrinth: ${fileName} (${v.version_number || ''})`)
+      }
     } else if (source === 'curseforge') {
       if (!cfHeaders['x-api-key']) return { ok: false, needsKey: true, error: 'Falta la API key de CurseForge' }
-      const { data: filesRes } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files`, {
-        params: {
-          pageSize: 50, index: 0,
-          gameVersion: gameVersion || undefined,
-          modLoaderType: loader && loader !== 'vanilla' ? CF_LOADER[loader] : undefined
-        },
-        headers: cfHeaders, timeout: 20000
-      })
-      const file = (filesRes.data || []).find((f: any) => f.isAvailable !== false && !f.isServerPack) || filesRes.data?.[0]
-      if (!file) return { ok: false, error: 'Sin archivos compatibles en CurseForge' }
-      const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files/${file.id}/download-url`, { headers: cfHeaders, timeout: 15000 })
-      fileUrl = dl.data; fileName = file.fileName || (type === 'modpack' ? 'modpack.zip' : `${id}.jar`)
-      send(`  CurseForge: ${fileName}`)
+      if (fileId) {
+        const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files/${fileId}/download-url`, { headers: cfHeaders, timeout: 15000 })
+        fileUrl = dl.data
+        fileName = decodeURIComponent(String(dl.data).split('?')[0].split('/').pop() || (type === 'modpack' ? 'modpack.zip' : `${id}.jar`))
+        send(`  CurseForge (file ${fileId}): ${fileName}`)
+      } else {
+        const { data: filesRes } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files`, {
+          params: {
+            pageSize: 50, index: 0,
+            gameVersion: gameVersion || undefined,
+            modLoaderType: loader && loader !== 'vanilla' ? CF_LOADER[loader] : undefined
+          },
+          headers: cfHeaders, timeout: 20000
+        })
+        const file = (filesRes.data || []).find((f: any) => f.isAvailable !== false && !f.isServerPack) || filesRes.data?.[0]
+        if (!file) return { ok: false, error: 'Sin archivos compatibles en CurseForge' }
+        const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files/${file.id}/download-url`, { headers: cfHeaders, timeout: 15000 })
+        fileUrl = dl.data; fileName = file.fileName || (type === 'modpack' ? 'modpack.zip' : `${id}.jar`)
+        send(`  CurseForge: ${fileName}`)
+      }
     } else return { ok: false, error: 'Fuente desconocida' }
 
     const res = await axios.get(fileUrl, { responseType: 'arraybuffer', timeout: 120000 })
@@ -1235,6 +1250,92 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
     const msg = String(e?.response?.data?.message || e?.message || e)
     send(`  fallo instalando: ${msg}`)
     return { ok: false, error: msg }
+  }
+})
+
+// Ficha completa de un mod/modpack (descripcion + lista de versiones para elegir)
+ipcMain.handle('get-content-detail', async (_e, opts: any) => {
+  const { source, id, fallbackAuthor } = opts || {}
+  try {
+    if (source === 'modrinth') {
+      const { data: p } = await axios.get(`https://api.modrinth.com/v2/project/${id}`, { timeout: 15000 })
+      let author = fallbackAuthor || ''
+      try {
+        const { data: members } = await axios.get(`https://api.modrinth.com/v2/team/${p.team}/members`, { timeout: 10000 })
+        const owner = members.find((m: any) => m.role === 'Owner') || members[0]
+        if (owner?.user?.username) author = owner.user.username
+      } catch {}
+      let versionsRaw: any[] = []
+      try {
+        const { data } = await axios.get(`https://api.modrinth.com/v2/project/${id}/version`, { timeout: 15000 })
+        versionsRaw = data || []
+      } catch {}
+      const versions = versionsRaw.slice(0, 60).map((v: any) => {
+        const f = (v.files || []).find((x: any) => x.primary) || v.files?.[0]
+        return {
+          id: String(v.id), label: v.version_number || v.name || String(v.id),
+          mc: (v.game_versions || []).slice(0, 3).join(', '),
+          loader: (v.loaders || []).join(', ') || '-',
+          date: v.date_published ? Date.parse(v.date_published) : 0,
+          downloads: v.downloads || 0, size: f?.size || 0,
+          kind: v.version_type || 'release'
+        }
+      })
+      return {
+        ok: true,
+        project: {
+          title: p.title, author, summary: p.description || '',
+          body: p.body || '', bodyType: 'md',
+          icon: p.icon_url || '', downloads: p.downloads || 0,
+          updated: p.date_modified ? Date.parse(p.date_modified) : 0,
+          categories: (p.categories || []).slice(0, 8),
+          sourceUrl: p.source_url || p.project_url || ''
+        },
+        versions
+      }
+    }
+    // CurseForge
+    const key = await getCurseForgeKey()
+    if (!key) return { ok: false, needsKey: true, error: 'Falta la API key de CurseForge — peguela en el recuadro amarillo' }
+    const h = { 'x-api-key': key, Accept: 'application/json' }
+    const { data: m } = await axios.get(`https://api.curseforge.com/v1/mods/${id}`, { headers: h, timeout: 15000 })
+    const mod = m.data
+    let files: any[] = []
+    try {
+      const { data: fr } = await axios.get(`https://api.curseforge.com/v1/mods/${id}/files`, { params: { pageSize: 50, index: 0 }, headers: h, timeout: 15000 })
+      files = fr.data || []
+    } catch {}
+    const LOADER_RE = /fabric|forge|neoforge|quilt|liteloader|rift/i
+    const versions = files
+      .filter((f: any) => f.isAvailable !== false && !f.isServerPack)
+      .map((f: any) => {
+        const sortable = f.sortableGameVersions || []
+        const loaders = [...new Set(sortable.map((s: any) => String(s.gameVersion || '')).filter((x: string) => LOADER_RE.test(x)))]
+        return {
+          id: String(f.id), label: f.displayName || f.fileName || String(f.id),
+          mc: (f.gameVersion || []).slice(0, 3).join(', '),
+          loader: loaders.join(', ') || '-',
+          date: f.datePublished ? Date.parse(f.datePublished) : 0,
+          downloads: f.downloadCount || 0, size: f.fileLength || 0,
+          kind: f.releaseType === 1 ? 'alpha' : f.releaseType === 2 ? 'beta' : 'release'
+        }
+      })
+      .sort((a: any, b: any) => b.date - a.date)
+    return {
+      ok: true,
+      project: {
+        title: mod.name, author: mod.authors?.[0]?.name || fallbackAuthor || '',
+        summary: mod.summary || '', body: mod.description || '', bodyType: 'html',
+        icon: mod.logo?.thumbnailUrl || mod.logo?.url || '',
+        downloads: mod.downloadCount || 0,
+        updated: mod.dateModified ? Date.parse(mod.dateModified) : 0,
+        categories: (mod.categories || []).map((c: any) => c.name).slice(0, 8),
+        sourceUrl: mod.links?.websiteUrl || ''
+      },
+      versions
+    }
+  } catch (e: any) {
+    return { ok: false, error: String(e?.response?.data?.message || e?.message || e) }
   }
 })
 
