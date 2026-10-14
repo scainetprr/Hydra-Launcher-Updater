@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1312",
+      "icon": "🐞",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.12 — Corregido el arranque de la aplicación",
+      "body": "Se corrigió el error \"Cannot find package 'axios'\" que impedía abrir el launcher recién instalado: las dependencias necesarias ahora viajan dentro del paquete. El inicio de partida y el inicio de sesión Microsoft también quedaron restaurados. Incluye todos los arreglos de v1.3.11 (instalador y botón de actualización)."
+    },
+    {
       "id": "v1311",
       "icon": "🛠️",
       "tag": "Launcher",
