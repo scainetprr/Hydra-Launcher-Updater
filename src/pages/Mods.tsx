@@ -243,7 +243,7 @@ export default function Mods(){
   }
   const closeDetail = () => { setDetailItem(null); setDetail(null); setDetailErr(''); setSecItems([]); setSecErr('') }
 
-  // secciones tipo TLauncher del pack: shaders / resource packs / mundos
+  // secciones del pack: shaders / resource packs / mundos
   const packMc = (detail?.versions?.[0]?.mc || '').split(',')[0].trim() || undefined
   useEffect(()=>{
     const sec = detailTab==='shaders' ? 'shader' : detailTab==='resources' ? 'resourcepack' : detailTab==='worlds' ? 'world' : null

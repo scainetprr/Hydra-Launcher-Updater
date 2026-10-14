@@ -2,12 +2,20 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1310",
+      "icon": "🖥️",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.10 — Nuevo instalador con diseño renovado",
+      "body": "Se rediseñó por completo el instalador: panel lateral oscuro con el logo de Hydra, tipografía moderna, botones verdes de acción y un paso de 'Tareas adicionales' donde puedes elegir acceso directo en el escritorio, menú inicio y ejecutar el launcher al terminar. Además se corrigió el texto de las notas de versión para que describa cada cambio con claridad."
+    },
+    {
       "id": "v139",
       "icon": "⚡",
       "tag": "Launcher",
       "date": "14/10/2026",
-      "title": "Hydra v1.3.9 — mini ventana de carga estilo TLauncher con verificación completa",
-      "body": "Ahora al abrir Hydra aparece una mini ventana antes del launcher: verifica tu conexión a internet (WiFi/Ethernet), comprueba si hay actualizaciones y escanea tus versiones instaladas en .minecraft/versions. La ventana principal se abre recién cuando todo está listo."
+      "title": "Hydra v1.3.9 — Se ha agregado un nuevo sistema de carga",
+      "body": "Se ha agregado un nuevo sistema de carga. Ahora el launcher verifica si hay una nueva versión al abrirlo, comprueba tu conexión a internet (WiFi/Ethernet) y escanea tus versiones instaladas en .minecraft/versions antes de mostrar la ventana principal."
     },
     {
       "id": "v138",
@@ -15,15 +23,15 @@
       "tag": "Launcher",
       "date": "14/10/2026",
       "title": "Hydra v1.3.8 — descripción real del pack y secciones de shaders, mods y mundos",
-      "body": "La ficha del modpack ahora muestra su descripción formateada de verdad (imágenes, videos y tablas). Además se agregaron pestañas para ver e instalar los mods del pack, shaders, resource packs y mundos compatibles, al estilo TLauncher."
+      "body": "La ficha del modpack ahora muestra su descripción formateada de verdad (imágenes, videos y tablas). Además se agregaron pestañas para ver e instalar los mods del pack, shaders, resource packs y mundos compatibles, todo integrado en el launcher."
     },
     {
       "id": "v137",
       "icon": "🚀",
       "tag": "Launcher",
       "date": "14/10/2026",
-      "title": "Hydra v1.3.7 — splash de arranque con verificación de actualizaciones",
-      "body": "Al abrir Hydra ahora aparece una pantalla de carga estilo TLauncher con barra de progreso. Mientras se muestra, el launcher verifica si hay una nueva versión disponible y te avisa antes de entrar."
+      "title": "Hydra v1.3.7 — Se ha agregado un nuevo sistema de carga",
+      "body": "Se ha agregado un nuevo sistema de carga. Ahora el launcher verifica si hay una nueva versión al abrirlo y te avisa antes de entrar, con una pantalla de carga que muestra el estado de cada comprobación."
     },
     {
       "id": "v136",

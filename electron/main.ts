@@ -98,7 +98,7 @@ function createWindow() {
   })
 }
 
-// --- MINI SPLASH (estilo TLauncher): red + actualizaciones + versiones antes de abrir ---
+// --- MINI SPLASH: red + actualizaciones + versiones antes de abrir ---
 let splashWin: BrowserWindow | null = null
 let startupUpdateCheck = false
 let splashUpdateResolved = false
@@ -296,7 +296,7 @@ app.whenReady().then(async () => {
     })
   }
 
-  // Mini splash (estilo TLauncher): WiFi + actualizaciones + versiones antes de abrir
+  // Mini splash: WiFi + actualizaciones + versiones antes de abrir
   let sp: BrowserWindow | null = null
   if (!shot) {
     try {

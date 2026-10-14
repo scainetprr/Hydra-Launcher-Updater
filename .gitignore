@@ -1,38 +1,11 @@
-# Dependencies
 node_modules/
-.pnp
-.pnp.js
-
-# Build outputs
 dist/
 dist-electron/
 release/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
+shots/
+shot_*.png
+artifacts/
+*.zip
+*.exe
+_tools/node/
 .DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Testing
-coverage/
-.nyc_output/
-
-# Misc
-*.tgz
-.cache/
