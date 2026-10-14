@@ -65,6 +65,28 @@ export default function Home() {
     return () => { alive = false; clearInterval(i) }
   }, [config.servers])
 
+  // Estrellas cayendo en el HERO
+  useEffect(() => {
+    const container = document.getElementById('heroStars')
+    if (!container) return
+    const colors = ['#7c3aed', '#06b6d4', '#ec4899', '#f59e0b', '#22c55e']
+    const stars: HTMLDivElement[] = []
+    for (let i = 0; i < 28; i++) {
+      const s = document.createElement('div')
+      s.className = 'hero-star'
+      s.style.left = `${Math.random() * 100}%`
+      s.style.top = `${-10 - Math.random() * 30}vh`
+      s.style.setProperty('--star-color', colors[Math.floor(Math.random() * colors.length)])
+      s.style.setProperty('--drift', `${(Math.random() - 0.5) * 40}vw`)
+      s.style.setProperty('--spin', `${(Math.random() - 0.5) * 720}deg`)
+      s.style.animationDuration = `${18 + Math.random() * 12}s`
+      s.style.animationDelay = `${-Math.random() * 30}s`
+      container.appendChild(s)
+      stars.push(s)
+    }
+    return () => { stars.forEach(s => s.remove()) }
+  }, [])
+
   const principal = config.servers.find((s: any) => s.id === 'hyperhard') || { ip: HYDRA_IP, port: 25565 }
   const evServer = config.servers.find((s: any) => s.id === 'hydra-eventos')
   const onlineNow = main?.online ? main.players.online : null
@@ -89,8 +111,9 @@ export default function Home() {
 
       {/* HERO */}
       <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0f0f14]">
-        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: `repeating-linear-gradient(45deg, transparent 0 22px, #7c3aed 22px 23px), repeating-linear-gradient(-45deg, transparent 0 22px, #06b6d4 22px 23px)` }}/>
         <div className="absolute inset-0" style={{ background: `radial-gradient(600px 400px at 75% 15%, rgba(124,58,237,0.32), transparent 60%), radial-gradient(500px 450px at 8% 90%, rgba(6,182,214,0.2), transparent 60%)` }}/>
+        <div className="absolute inset-0 bg-hero-breathing opacity-60" />
+        <div className="absolute inset-0" id="heroStars" style={{ pointerEvents: 'none' }} />
         <div className="relative p-6 md:p-8 grid lg:grid-cols-[1.35fr_0.9fr] gap-6">
           <div className="min-w-0">
             <div className="flex items-center gap-3">

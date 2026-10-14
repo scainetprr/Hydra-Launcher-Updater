@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v137",
+      "icon": "🚀",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.7 — splash de arranque con verificación de actualizaciones",
+      "body": "Al abrir Hydra ahora aparece una pantalla de carga estilo TLauncher con barra de progreso. Mientras se muestra, el launcher verifica si hay una nueva versión disponible y te avisa antes de entrar."
+    },
+    {
       "id": "v136",
       "icon": "📦",
       "tag": "Launcher",

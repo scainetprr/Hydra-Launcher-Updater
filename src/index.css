@@ -47,3 +47,30 @@
 
 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .fade-up { animation: fadeSlideUp .3s ease both; }
+
+/* HERO: fondo suave animado - respiración de color + estrellas cayendo */
+@keyframes heroBreath {
+  0%, 100% { background-position: 0% 50%; filter: hue-rotate(0deg) brightness(1); }
+  50% { background-position: 100% 50%; filter: hue-rotate(15deg) brightness(1.1); }
+}
+.bg-hero-breathing {
+  background: linear-gradient(-45deg, #7c3aed, #06b6d4, #ec4899, #7c3aed, #06b6d4);
+  background-size: 400% 400%;
+  animation: heroBreath 18s ease-in-out infinite;
+}
+
+/* Estrellas cayendo sutiles */
+@keyframes starFall {
+  0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(110vh) translateX(var(--drift)) rotate(var(--spin)); opacity: 0; }
+}
+.hero-star {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: var(--star-color);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--star-color), 0 0 12px var(--star-color);
+  will-change: transform, opacity;
+}
