@@ -5,7 +5,7 @@
 ; ============================================================================
 
 #define MyAppName "Hydra Launcher"
-#define MyAppVersion "1.3.12"
+#define MyAppVersion "1.3.13"
 #define MyAppPublisher "Hydra Studio (scainetprr)"
 #define MyAppURL "https://discord.gg/qyyREajJgC"
 #define MyAppExeName "Hydra Launcher.exe"
@@ -48,11 +48,13 @@ UsePreviousAppDir=yes
 UsePreviousGroup=yes
 UsePreviousLanguage=yes
 UsePreviousTasks=yes
-RestartIfNeededByRun=false
 ShowLanguageDialog=auto
 LanguageDetectionMethod=locale
 PrivilegesRequired=lowest
 SignedUninstaller=no
+; cerrar la app si está en uso para poder reemplazar sus archivos
+CloseApplications=yes
+RestartIfNeededByRun=false
 ; panel lateral oscuro + imagen pequeña
 WizardImageFile=wizard\WizardImage.bmp
 WizardSmallImageFile=wizard\WizardSmallImage.bmp
@@ -107,15 +109,10 @@ Type: files; Name: "{userdesktop}\{#MyAppName}.lnk"
 Type: files; Name: "{userstartmenu}\{#MyAppName}*.lnk"
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "DisplayName"; ValueData: "{#MyAppName}"
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "DisplayVersion"; ValueData: "{#MyAppVersion}"
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "Publisher"; ValueData: "{#MyAppPublisher}"
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "URLInfoAbout"; ValueData: "{#MyAppURL}"
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "DisplayIcon"; ValueData: "{app}\{#MyAppExeName}"
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: dword; ValueName: "NoModify"; ValueData: 1
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: dword; ValueName: "NoRepair"; ValueData: 1
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "UninstallString"; ValueData: """{uninstallexe}"""
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; ValueType: string; ValueName: "QuietUninstallString"; ValueData: """{uninstallexe}"" /SILENT"
+; Inno crea automáticamente su propia entrada de desinstalación (con sufijo _is1).
+; Esta línea solo elimina la entrada manual huérfana que versiones anteriores registraban
+; y causaba la entrada DOBLE en "Programas y características".
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppName}"; Flags: deletekey
 
 [Code]
 // Tema oscuro personalizado para el instalador (Hydra)
@@ -202,19 +199,43 @@ begin
 
   DarkenChildren(WizardForm, CLR_TEXT);
 
+  // --- Cabecera de cada página interna (era la banda blanca) ---
+  // MainPanel es el panel que sostiene el título, la descripción y la imagen pequeña.
+  WizardForm.MainPanel.ParentBackground := False;
+  WizardForm.MainPanel.Color := CLR_BG;
+  WizardForm.MainPanel.BevelInner := bvNone;
+  WizardForm.MainPanel.BevelOuter := bvNone;
+  WizardForm.MainPanel.Font.Color := CLR_TEXT;
+
+  WizardForm.PageNameLabel.ParentBackground := False;
+  WizardForm.PageNameLabel.Color := CLR_BG;
+  WizardForm.PageNameLabel.Font.Color := CLR_GREEN;
+  WizardForm.PageNameLabel.Font.Size := 13;
+  WizardForm.PageNameLabel.Font.Style := [fsBold];
+
+  WizardForm.PageDescriptionLabel.ParentBackground := False;
+  WizardForm.PageDescriptionLabel.Color := CLR_BG;
+  WizardForm.PageDescriptionLabel.Font.Color := CLR_TEXT_DIM;
+  WizardForm.PageDescriptionLabel.Font.Size := 9;
+
+  WizardForm.WizardSmallBitmapImage.BackColor := CLR_BG;
+
+  // Botones
   StyleButton(WizardForm.CancelButton, False);
   StyleButton(WizardForm.BackButton, False);
   StyleButton(WizardForm.NextButton, True);
   WizardForm.NextButton.Font.Color := CLR_GREEN;
 
+  // Página de bienvenida (Outer): título grande + descripción
   WizardForm.WelcomeLabel1.Font.Color := CLR_GREEN;
-  WizardForm.WelcomeLabel1.Font.Size := 14;
+  WizardForm.WelcomeLabel1.Font.Size := 15;
   WizardForm.WelcomeLabel1.Font.Style := [fsBold];
   WizardForm.WelcomeLabel2.Font.Color := CLR_TEXT_DIM;
 
-  WizardForm.LicenseLabel1.Font.Color := CLR_GREEN;
-  WizardForm.LicenseLabel1.Font.Size := 12;
-  WizardForm.LicenseLabel1.Font.Style := [fsBold];
+  // Licencia: LicenseLabel1 es el texto de instrucción (cuerpo), no un título
+  WizardForm.LicenseLabel1.Font.Color := CLR_TEXT;
+  WizardForm.LicenseLabel1.Font.Size := 9;
+  WizardForm.LicenseLabel1.Font.Style := [];
   WizardForm.LicenseMemo.Font.Size := 9;
 
   WizardForm.DirEdit.Font.Size := 9;
@@ -231,7 +252,13 @@ begin
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
 begin
+  // Cerrar Hydra Launcher si está en uso para poder reemplazar sus archivos
+  // (evita el error "DeleteFile falló; código 5. Acceso denegado").
+  Exec(ExpandConstant('{cmd}'), '/c taskkill /f /im "Hydra Launcher.exe" >nul 2>&1', '',
+    SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := '';
 end;
 

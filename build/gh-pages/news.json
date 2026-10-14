@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1313",
+      "icon": "🛠️",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.13 — Instalador pulido y sin errores",
+      "body": "Se corrigió la cabecera blanca del instalador: ahora todo el asistente es oscuro y coherente (título, descripción e imagen pequeña). Se eliminó la entrada duplicada en Programas y características, y el instalador ahora cierra Hydra Launcher si está abierto para evitar el error de \"Acceso denegado\" al reemplazar archivos."
+    },
+    {
       "id": "v1312",
       "icon": "🐞",
       "tag": "Launcher",
