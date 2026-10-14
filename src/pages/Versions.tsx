@@ -41,16 +41,20 @@ export default function Versions(){
 
   const isInstalledId = (id:string)=> installed.includes(id) || installed.some(x=>x.includes(id) && id.length>3) || (installedVersions||[]).some((x:any)=>x.id===id)
 
-  const badge = (id:string)=>{
+  const badge = (id:string, loaderHint?:string|null)=>{
+    // el loader real detectado del json manda sobre inferencias por nombre
+    if (loaderHint==='fabric') return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
+    if (loaderHint==='neoforge') return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
+    if (loaderHint==='forge') return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
     if (id.toLowerCase().startsWith('fabric-loader')) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
+    if (id.toLowerCase().startsWith('neoforge')) return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
     if (id.toLowerCase().startsWith('forge')) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
-    const isFab = installed.some(x=>x.includes(`fabric`) && x.includes(id))
-    const isForge = installed.some(x=>x.includes(`forge`) && x.includes(id))
-    if (isFab) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
-    if (isForge) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
+    if (id.toLowerCase().includes('fabric')) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
+    if (id.toLowerCase().includes('neoforge')) return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
+    if (id.toLowerCase().includes('forge')) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
     if (installed.includes(id)) return {label:'VANILLA',cls:'bg-white/15 text-white',icon:'⬢'}
-    if (loader==='fabric') return {label:'FABRIC',cls:'bg-violet-600/20 text-violet-300 border border-violet-500/30',icon:'⚡'}
-    if (loader==='forge') return {label:'FORGE',cls:'bg-amber-600/20 text-amber-300 border border-amber-500/30',icon:'🔨'}
+    if (loader==='fabric') return {label:'FABRIC',cls:'bg-violet-500/20 text-violet-300 border border-violet-500/30',icon:'⚡'}
+    if (loader==='forge') return {label:'FORGE',cls:'bg-amber-500/20 text-amber-300 border border-amber-500/30',icon:'🔨'}
     return {label:'VANILLA',cls:'bg-white/10 text-white/70 border border-white/10',icon:'⬢'}
   }
 
@@ -71,7 +75,7 @@ export default function Versions(){
       return ids.map(id=>{
         const m = manifestById[id]
         const fv = (installedVersions||[]).find((x:any)=>x.id===id)
-        return { id, type: m?.type || fv?.type || 'release', releaseTime: m?.releaseTime || '', url: m?.url || (fv?.valid? 'instalada en disco' : ''), modpack: fv?.modpack || null }
+        return { id, type: m?.type || fv?.type || 'release', releaseTime: m?.releaseTime || '', url: m?.url || (fv?.valid? 'instalada en disco' : ''), modpack: fv?.modpack || null, loader: fv?.loader || null }
       }).sort((a:any,b:any)=> (b.releaseTime||'').localeCompare(a.releaseTime||''))
         .filter(match)
     }
@@ -141,7 +145,7 @@ export default function Versions(){
             </div>
           )}
           {filtered.map((v:any)=>{
-            const b=badge(v.id)
+            const b=badge(v.id, v.loader)
             const isInst = isInstalledId(v.id)
             return (
             <button key={v.id} onClick={()=>set({selectedVersion:v.id})}

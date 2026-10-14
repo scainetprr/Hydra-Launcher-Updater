@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1315",
+      "icon": "🐞",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.15 — Badges de loader y modpacks más claros",
+      "body": "Cada versión instalada ahora muestra su loader real (Fabric, Forge o NeoForge) en lugar de adivinarlo por el nombre — se acabó que NeoForge apareciera como Fabric o que un modpack Fabric dijera Vanilla. Al abrir un modpack en la sección Mods se marca con ✓ qué versiones ya tienes instaladas. Además, si un lanzamiento falla, el error ahora indica el endpoint exacto para diagnosticarlo rápido."
+    },
+    {
       "id": "v1314",
       "icon": "🐞",
       "tag": "Launcher",

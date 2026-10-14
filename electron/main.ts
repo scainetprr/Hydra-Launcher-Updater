@@ -699,6 +699,39 @@ ipcMain.handle('get-installed', async () => {
   } catch { return [] }
 })
 
+// Detecta el loader real (fabric/forge/neoforge) de una version instalada.
+// Prioriza hydraModpack.loader; si no, infiere desde mainClass y libraries del json.
+function detectLoaderFromJson(j: any, id: string): string | null {
+  const explicit = j?.hydraModpack?.loader
+  if (explicit && typeof explicit === 'string') {
+    const e = explicit.toLowerCase()
+    if (e === 'fabric' || e === 'forge' || e === 'neoforge') return e
+  }
+  const mc = String(j?.mainClass || '').toLowerCase()
+  if (mc.includes('fabric') || mc.includes('knotclient')) return 'fabric'
+  if (mc.includes('neoforge')) return 'neoforge'
+  if (mc.includes('forge') || mc.includes('cpw.mods') || mc.includes('launchwrapper')) {
+    // launchwrapper es usado por forge antiguo y fabric viejo; refina con libraries
+    const libs = Array.isArray(j?.libraries) ? j.libraries.map((l: any) => String(l?.name || '').toLowerCase()).join(' ') : ''
+    if (libs.includes('fabric')) return 'fabric'
+    if (libs.includes('neoforge')) return 'neoforge'
+    if (libs.includes('forge')) return 'forge'
+    return 'forge'
+  }
+  const libs = Array.isArray(j?.libraries) ? j.libraries.map((l: any) => String(l?.name || '').toLowerCase()).join(' ') : ''
+  if (libs.includes('fabric-loader') || libs.includes('sponge-mixin')) return 'fabric'
+  if (libs.includes('neoforge')) return 'neoforge'
+  if (libs.includes('minecraftforge')) return 'forge'
+  return detectLoaderFromId(id)
+}
+function detectLoaderFromId(id: string): string | null {
+  const s = id.toLowerCase()
+  if (s.includes('fabric')) return 'fabric'
+  if (s.includes('neoforge')) return 'neoforge'
+  if (s.includes('forge')) return 'forge'
+  return null
+}
+
 // Retorna info completa de TODAS las versiones en disco (id, tipo json, si es válida)
 // Esto permite al launcher detectar versiones instaladas por el usuario en el launcher oficial
 ipcMain.handle('get-installed-versions-full', async () => {
@@ -709,16 +742,21 @@ ipcMain.handle('get-installed-versions-full', async () => {
     const result = []
     for (const d of dirs) {
       const jsonPath = path.join(vDir, d, d + '.json')
-      let type = 'vanilla'; let valid = false; let modpack: string | null = null
+      let type = 'vanilla'; let valid = false; let modpack: string | null = null; let loader: string | null = null; let base: string | null = null; let projectId: string | null = null
       if (fs.existsSync(jsonPath)) {
         try {
           const j = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'))
           type = j.type || 'vanilla'
           valid = true
           if (j.hydraModpack?.name) modpack = String(j.hydraModpack.name)
+          if (j.hydraModpack?.base) base = String(j.hydraModpack.base)
+          if (j.hydraModpack?.projectId) projectId = String(j.hydraModpack.projectId)
+          loader = detectLoaderFromJson(j, d)
         } catch {}
+      } else {
+        loader = detectLoaderFromId(d)
       }
-      result.push({ id: d, type, valid, modpack })
+      result.push({ id: d, type, valid, modpack, loader, base, projectId })
     }
     return result
   } catch { return [] }
@@ -1115,8 +1153,15 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     }
     return { ok: true, pid: proc?.pid }
   }catch(e:any){
-    const msg = e?.message || String(e)
+    let msg = e?.message || String(e)
     const stack = e?.stack || ''
+    // si es un error de axios, muestra el endpoint exacto que falló (clave para diagnosticar 4xx/5xx)
+    const netUrl = e?.config?.url || e?.request?.responseURL || ''
+    const netStatus = e?.response?.status
+    if (netUrl) {
+      const body = typeof e?.response?.data === 'string' ? e.response.data.slice(0,300) : (e?.response?.data ? JSON.stringify(e.response.data).slice(0,300) : '')
+      msg += `\nEndpoint: ${netUrl}${netStatus ? ` (HTTP ${netStatus})` : ''}${body ? `\nRespuesta: ${body}` : ''}`
+    }
     send(`âœ— FALLO: ${msg}`)
     if (stack) send(stack.slice(0,3000))
     console.error(e)
@@ -1456,7 +1501,7 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
         id: packId,
         inheritsFrom: baseVersion || '1.20.1',
         type: 'release',
-        hydraModpack: { name: packName, loader: packLoader, base: baseVersion || '1.20.1' }
+        hydraModpack: { name: packName, loader: packLoader, base: baseVersion || '1.20.1', projectId: String(id) }
       }, null, 2))
 
       // Registrar en "Mis modpacks"

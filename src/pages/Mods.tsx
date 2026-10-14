@@ -178,6 +178,7 @@ export default function Mods(){
   const [secItems,setSecItems]=useState<Item[]>([])
   const [secLoading,setSecLoading]=useState(false)
   const [secErr,setSecErr]=useState('')
+  const [installedFull,setInstalledFull]=useState<any[]>([])
 
   const type = tab==='packs' ? 'modpack' : 'mod'
 
@@ -198,10 +199,14 @@ export default function Mods(){
     setLoading(false)
   }
 
+  const refreshInstalledFull = () => {
+    window.api?.getInstalledVersionsFull?.().then((l:any[])=>setInstalledFull(l||[])).catch(()=>{})
+  }
   useEffect(()=>{ setOffset(0); search(true) },[source, selectedVersion, loader, type, sort])
   useEffect(()=>{
     window.api?.getModpacks?.().then((p:any[])=>setPacks(p||[])).catch(()=>setPacks([]))
     window.api?.getModsInfo?.().then((m:any)=>setMods(m?.files||[])).catch(()=>setMods([]))
+    refreshInstalledFull()
   },[])
   useEffect(()=>{ setCfKeyInput(config.curseforgeKey||'') },[config.curseforgeKey])
 
@@ -224,7 +229,7 @@ export default function Mods(){
       const msg = itType==='modpack' ? `Pack${label} instalado como versión: ${res.packName} (${res.installed} mods) — ya aparece en Versiones → Instaladas` : `Instalado${label}: ${res.filename}${destMsg[itType] ? ` ${destMsg[itType]}` : ''}`
       setResults(r=>({...r,[key]:`✓ ${msg}`}))
       addLog(`✓ ${msg}`)
-      if (itType==='modpack') { const p = await window.api?.getModpacks?.(); setPacks(p||[]) }
+      if (itType==='modpack') { const p = await window.api?.getModpacks?.(); setPacks(p||[]); refreshInstalledFull() }
     } else {
       setResults(r=>({...r,[key]:`✗ ${res?.error||'fallo'}`}))
       addLog(`✗ ${it.title}: ${res?.error}`)
@@ -302,6 +307,18 @@ export default function Mods(){
     if (!pack.versionId) return
     set({ selectedVersion: pack.versionId })
     addLog(`Modpack ${pack.name} (${pack.base||'?'}) seleccionado — pulsa JUGAR en Inicio`)
+  }
+  // ¿Esta base (MC) del modpack actual ya está instalada en disco?
+  const packVersionInstalled = (baseMc:string): boolean => {
+    if (!detailItem || !baseMc) return false
+    const pid = String(detailItem.id)
+    const title = String(detailItem.title||'').toLowerCase()
+    return installedFull.some((iv:any)=>{
+      if (!iv?.base || String(iv.base)!==String(baseMc)) return false
+      if (iv.projectId && String(iv.projectId)===pid) return true
+      const nm = String(iv.modpack||'').toLowerCase()
+      return !!(nm && title && nm.startsWith(title))
+    })
   }
 
   return (
@@ -423,12 +440,14 @@ export default function Mods(){
                       {(detail.versions||[]).length===0 && <div className="text-white/45 text-sm py-6 text-center">Sin versiones listadas.</div>}
                       {(detail.versions||[]).map((v:any)=>{
                         const vkey = detailItem.id+':'+v.id
+                        const isInst = !!(v.mc && packVersionInstalled(v.mc))
                         return (
-                          <div key={v.id} className="flex items-center gap-3 bg-black/20 border border-white/5 rounded-xl px-3 py-2.5 hover:bg-white/[0.04]">
+                          <div key={v.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border ${isInst?'bg-emerald-500/[0.06] border-emerald-500/25':'bg-black/20 border-white/5 hover:bg-white/[0.04]'}`}>
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-sm truncate flex items-center gap-2">
                                 {v.label}
                                 {v.kind && v.kind!=='release' && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${v.kind==='beta'?'bg-amber-500/15 text-amber-300':'bg-rose-500/15 text-rose-300'}`}>{String(v.kind).toUpperCase()}</span>}
+                                {isInst && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-black bg-emerald-500/20 text-emerald-300">✓ INSTALADA</span>}
                               </div>
                               <div className="text-[11px] text-white/45 mt-0.5 truncate">
                                 {v.mc || '—'}{v.loader && v.loader!=='-' ? ` • ${v.loader}` : ''}
@@ -439,8 +458,8 @@ export default function Mods(){
                               {results[vkey] && <div className={`text-[11px] mt-0.5 font-bold ${results[vkey].startsWith('✓')?'text-emerald-300':'text-rose-300'}`}>{results[vkey]}</div>}
                             </div>
                             <button onClick={()=>install(detailItem, v)} disabled={installing[vkey]}
-                              className="shrink-0 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold px-4 py-1.5 rounded-lg text-xs">
-                              {installing[vkey] ? 'Instalando...' : 'Instalar'}
+                              className={`shrink-0 disabled:opacity-50 text-white font-bold px-4 py-1.5 rounded-lg text-xs ${isInst?'bg-white/10 hover:bg-white/20':'bg-emerald-600 hover:bg-emerald-500'}`}>
+                              {installing[vkey] ? 'Instalando...' : (isInst ? 'Reinstalar' : 'Instalar')}
                             </button>
                           </div>
                         )
