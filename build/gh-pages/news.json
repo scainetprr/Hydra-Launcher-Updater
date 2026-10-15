@@ -2,6 +2,14 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "v1320",
+      "icon": "🔗",
+      "tag": "Web",
+      "date": "2026-10-15",
+      "title": "Nuevo dominio oficial: launcher.hyperhard.space",
+      "body": "La web oficial ya vive en launcher.hyperhard.space con HTTPS. El botón de la presencia de Discord apunta al nuevo dominio (la dirección antigua redirige automáticamente)."
+    },
+    {
       "id": "v1319",
       "icon": "🧹",
       "tag": "Launcher",
