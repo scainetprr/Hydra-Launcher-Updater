@@ -454,9 +454,17 @@ ipcMain.handle('get-accounts', () => fs.existsSync(ACCOUNTS_PATH) ? JSON.parse(f
 ipcMain.handle('save-accounts', (_e, a) => { fs.writeFileSync(ACCOUNTS_PATH, JSON.stringify(a,null,2)); return true })
 
 // --- VERSIONS (Mojang manifest) ---
+// Caché en disco: sin wifi igual se sirve la última lista conocida (nunca lanza excepción).
+const VERSIONS_CACHE = path.join(HYDRA_DIR, 'version_manifest_v2.json')
 ipcMain.handle('get-versions', async () => {
-  const { data } = await axios.get('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json', { timeout: 8000 })
-  return data // { latest, versions: [{id,type,url,releaseTime}] }
+  try {
+    const { data } = await axios.get('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json', { timeout: 8000 })
+    try { fs.writeFileSync(VERSIONS_CACHE, JSON.stringify(data)) } catch {}
+    return data // { latest, versions: [{id,type,url,releaseTime}] }
+  } catch {
+    try { if (fs.existsSync(VERSIONS_CACHE)) return JSON.parse(fs.readFileSync(VERSIONS_CACHE, 'utf-8')) } catch {}
+    return { latest: { release: '', snapshot: '' }, versions: [], offline: true }
+  }
 })
 ipcMain.handle('get-fabric', async (_e, mc: string) => {
   try {
@@ -667,7 +675,13 @@ ipcMain.handle('open-external', (_e, url: string) => {
   try { shell.openExternal(url); return true } catch { return false }
 })
 
+// caché corta: `where java`/`java -version` son execSync y bloquean el proceso principal
+// (la ventana se marcaba "No responde" en cada lanzamiento). Re-detecta cada 60s o si no hay ninguna.
+let javaScanAt = 0
+let javaScanList: string[] = []
 function findJavaCandidates(): string[] {
+  const now = Date.now()
+  if (javaScanList.length && now - javaScanAt < 60000) return javaScanList
   const c: string[] = []
   const managed = getManagedJavaExe()
   if (managed) c.push(managed)
@@ -688,6 +702,8 @@ function findJavaCandidates(): string[] {
   // common jre locations
   const extra = ['C:\\Program Files\\Java', 'C:\\Program Files (x86)\\Java']
   extra.forEach(base=>{ if(fs.existsSync(base)) fs.readdirSync(base).forEach(d=>{ const p=path.join(base,d,'bin','java.exe'); if(fs.existsSync(p) && !c.includes(p)) c.push(p) }) })
+  javaScanAt = now
+  javaScanList = c
   return c
 }
 ipcMain.handle('detect-java', async () => findJavaCandidates())
@@ -988,13 +1004,24 @@ ipcMain.handle('launch', async (_e, opts:any) => {
         }
       }
     } catch (e: any) { send(`  aviso modpack: ${String(e?.message || e)}`) }
-    // detectar tipo real desde manifest (release/snapshot) para no forzar 'release' en snapshots como 26.3-rc-3
+    // detectar tipo real (release/snapshot) para no forzar 'release' en snapshots como 26.3-rc-3
+    // primero el json local (sin red si la versión ya está en disco); solo si no está, consulta Mojang
     let type = 'release'
     try {
-      const { data } = await axios.get('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json', { timeout: 8000 })
-      const found = (data.versions as any[]).find(v=>v.id===mcVersion)
-      if (found?.type) type = found.type
-      send(`  tipo detectado: ${type}`)
+      let foundType = ''
+      const localBaseJson = path.join(root, 'versions', mcVersion, `${mcVersion}.json`)
+      if (fs.existsSync(localBaseJson)) {
+        try { foundType = JSON.parse(fs.readFileSync(localBaseJson, 'utf-8')).type || '' } catch {}
+      }
+      if (foundType) {
+        type = foundType
+        send(`  tipo detectado (json local, sin red): ${type}`)
+      } else {
+        const { data } = await axios.get('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json', { timeout: 8000 })
+        const found = (data.versions as any[]).find(v=>v.id===mcVersion)
+        if (found?.type) type = found.type
+        send(`  tipo detectado: ${type}`)
+      }
     } catch { send('  no se pudo detectar tipo, usando release') }
 
     // auth: premium (msa) con refresh â€” offline solo si type offline
@@ -1044,30 +1071,42 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     }
 
     // java: auto-detect si no viene; fallback al Java gestionado de Hydra (Adoptium auto-descargado)
+    // IMPORTANTE: no basta con "haber Java" — hay que elegir uno >= mcNeedsJavaMajor (ej: MC 1.21
+    // exige Java 21 y muchos PCs solo tienen Java 8 instalado → UnsupportedClassVersionError 65.0)
     let javaPath: string = opts.javaPath || ''
+    const needJava = mcNeedsJavaMajor(mcVersion)
     if (!javaPath) {
       const cands = findJavaCandidates()
-      send(`  javas detectadas: ${cands.join(' | ') || 'ninguna'}`)
-      if (cands.length) {
-        // elegir la version mas nueva instalada (antes un regex roto siempre elegia la 1ª)
-        let best = cands[0]; let bestVer = 0
-        for (const p of cands) {
-          const ver = javaMajorOf(p)
-          if (ver > bestVer) { bestVer = ver; best = p }
-        }
+      send(`  javas detectadas: ${cands.join(' | ') || 'ninguna'} | ${mcVersion} necesita Java ${needJava}`)
+      let best = ''; let bestVer = 0
+      for (const p of cands) {
+        const ver = javaMajorOf(p)
+        if (ver >= needJava && ver > bestVer) { bestVer = ver; best = p }
+      }
+      if (best) {
         javaPath = best
-        send(`  java elegido: ${javaPath} (Java ${bestVer || '?'})`)
+        send(`  java elegido: ${javaPath} (Java ${bestVer})`)
       } else {
-        // Sin Java en el PC → Hydra lo instala sola (Adoptium gestionado)
-        const need = mcNeedsJavaMajor(mcVersion)
-        send(`  ⚠ Sin Java detectado — instalando Adoptium Temurin ${need} automaticamente...`)
-        const inst = await installManagedJava(need, send)
-        if (!inst.ok) throw new Error(`No hay Java en tu PC y la instalacion automatica fallo: ${inst.error}\n\nDescarga Adoptium tu mismo: https://adoptium.net/temurin/releases/ (JRE ${need}, Windows x64)`)
+        // sin Java, o solo Javaes demasiado viejos → Hydra instala el correcto (Adoptium gestionado)
+        const reason = cands.length
+          ? `las detectadas no llegan a Java ${needJava} (maxima: Java ${Math.max(...cands.map(p => javaMajorOf(p)))})`
+          : 'no hay Java en tu PC'
+        send(`  ⚠ ${reason} — instalando Adoptium Temurin ${needJava} automaticamente...`)
+        const inst = await installManagedJava(needJava, send)
+        if (!inst.ok) throw new Error(`Java insuficiente para ${mcVersion} (necesita Java ${needJava}) y la instalacion automatica fallo: ${inst.error}\n\nDescarga Adoptium tu mismo: https://adoptium.net/temurin/releases/ (JRE ${needJava}, Windows x64)`)
         javaPath = inst.javaPath
       }
     } else {
       send(`  java custom: ${javaPath}`)
       if (!fs.existsSync(javaPath)) throw new Error(`Java no encontrado: ${javaPath}`)
+      const customVer = javaMajorOf(javaPath)
+      if (customVer && customVer < needJava) {
+        // el Java configurado en Ajustes no sirve para esta version → no lanzar, instalar el correcto
+        send(`  ⚠ El Java custom (Java ${customVer}) es demasiado viejo para ${mcVersion} (necesita Java ${needJava}) — instalando el correcto...`)
+        const inst = await installManagedJava(needJava, send)
+        if (!inst.ok) throw new Error(`Tu Java configurado (Java ${customVer}) no sirve para ${mcVersion} (necesita Java ${needJava}) y la instalacion automatica fallo: ${inst.error}\n\nDescarga Adoptium tu mismo: https://adoptium.net/temurin/releases/ (JRE ${needJava}, Windows x64)`)
+        javaPath = inst.javaPath
+      }
     }
 
     // Instancia aislada para modpacks: su propio gameDir (mods, config, saves) — no toca .minecraft global
@@ -1117,12 +1156,15 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       send(`  quickPlay → ${opts.server.ip}:${opts.server.port||25565}`)
     }
 
-    // logs detallados
-    ;(['debug','data','progress','download','close','error'] as const).forEach(ev=>{
+    // logs detallados — progress/download NO se vuelcan al log: en la 1ra ejecución son
+    // 5000+ eventos que saturaban el renderer (ventana "No responde"); el progreso va por 'progress' IPC
+    const recentOut: string[] = []
+    ;(['debug','data','close','error'] as const).forEach(ev=>{
       // @ts-ignore
       launcher.on(ev, (e:any)=> {
         const msg = typeof e === 'string' ? e : JSON.stringify(e).slice(0,1200)
         send(`[${ev}] ${msg}`)
+        if (ev === 'data') { recentOut.push(msg); if (recentOut.length > 60) recentOut.shift() }
       })
     })
     // algunos builds emiten 'arguments'
@@ -1138,13 +1180,20 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     if (proc?.on) {
       proc.on('close', (code:number)=> {
         send(`  proceso cerrado code ${code}`)
-        recordSessionEnd(true)
-        try { win?.webContents.send('session-end', true) } catch {}
+        // salida anormal: guarda informe con la última salida de la consola del juego
+        // (aquí caen los errores reales: Java incompatible, falta de RAM, mods rotos...)
+        if (code && code !== 0) {
+          recordCrash(opts, `Minecraft terminó con código ${code} (no salió por su cuenta)`, recentOut.join('\n'))
+          send(`  ⚠ salida anormal (code ${code}) — informe guardado en hydra-crashes`)
+        }
+        recordSessionEnd(code === 0 || code == null)
+        try { win?.webContents.send('session-end', code === 0 || code == null) } catch {}
         lastIdleAt = 0
         setIdlePresence()
       })
       proc.on('error', (e:any)=> {
         send(`  proceso error ${String(e)}`)
+        recordCrash(opts, `No se pudo ejecutar el proceso Java: ${String(e)}`, recentOut.join('\n'))
         recordSessionEnd(false)
         try { win?.webContents.send('session-end', false) } catch {}
         lastIdleAt = 0

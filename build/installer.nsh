@@ -19,7 +19,7 @@ Var /GLOBAL HYDRA_LAUNCH_AFTER_INSTALL
 
 ; Página de bienvenida personalizada
 Function customWelcome
-  !insertmacro MUI_HEADER_TEXT "Bienvenido al instalador de Hydra Launcher" "Instalará Hydra Launcher v${PRODUCT_VERSION} en su equipo"
+  !insertmacro MUI_HEADER_TEXT "Bienvenido al instalador de Hydra Launcher" "Instalará Hydra Launcher v${VERSION} en su equipo"
 FunctionEnd
 
 ; Página de componentes (opcional - aquí podrías agregar componentes)
@@ -36,8 +36,8 @@ FunctionEnd
 ; Hooks del instalador
 ; ============================================================
 
-; Se ejecuta antes de la instalación
-Function .onInit
+; Se ejecuta antes de la instalación (dentro del .onInit del template)
+!macro customInit
   ; Verificar si ya hay una instalación previa
   StrCpy $0 "$PROGRAMFILES64\Hydra Launcher"
   StrCpy $1 "$LOCALAPPDATA\Programs\Hydra Launcher"
@@ -46,7 +46,7 @@ Function .onInit
   StrCpy $HYDRA_DESKTOP_SHORTCUT 1
   StrCpy $HYDRA_STARTMENU_SHORTCUT 1
   StrCpy $HYDRA_LAUNCH_AFTER_INSTALL 1
-FunctionEnd
+!macroend
 
 ; Se ejecuta después de copiar archivos
 Function .onInstFilesSuccess
@@ -78,29 +78,21 @@ FunctionEnd
 ; ============================================================
 ; Sección de desinstalación personalizada
 ; ============================================================
-Function un.onInit
+!macro customUnInit
   ; Confirmar desinstalación
   MessageBox MB_YESNO|MB_ICONQUESTION "¿Está seguro de que desea desinstalar Hydra Launcher?" IDYES +2
   Abort
-FunctionEnd
+!macroend
 
 ; ============================================================
 ; Funciones auxiliares
 ; ============================================================
 
 ; Verificar si la aplicación está en ejecución
+; Nota: NSIS estándar no tiene ${GetProcName}; se devuelve 0 (no detectado).
+; Si se necesita detección real, usar el plugin nsProcess.
 Function IsAppRunning
-  ; Buscar proceso por nombre
-  ; Retorna 1 si está corriendo, 0 si no
-  Push $0
-  Push $1
-  StrCpy $0 0
-  ${GetProcName} "$0" "Hydra Launcher.exe" $1
-  StrCmp $1 "" 0 +2
-  StrCpy $0 1
-  Pop $1
-  Pop $0
-  Exch $0
+  Push 0
 FunctionEnd
 
 ; ============================================================

@@ -37,14 +37,17 @@ export default function App(){
     const done = ()=>{ if(--pending<=0) setReady(true) }
 
     window.api?.getVersions?.().then((vData:any)=>{
-      if (vData?.versions) {
+      if (vData?.versions && vData.versions.length) {
         const { config: cfg } = useStore.getState()
         const savedVer = cfg?.lastVersion
         const savedLoader = cfg?.lastLoader
         const ver = savedVer && vData.versions.some((x:any)=>x.id===savedVer) ? savedVer : vData.latest.release
         set({versions:vData.versions, latest:vData.latest, selectedVersion: ver, loader: savedLoader || 'vanilla'})
+      } else {
+        // sin wifi y sin caché: lista vacía para que Versiones muestre las instaladas en disco
+        set({versions: [], latest: vData?.latest?.release ? vData.latest : {release:'',snapshot:''}})
       }
-    }).catch(()=>{}).finally(done)
+    }).catch(()=> set({versions: [], latest:{release:'',snapshot:''}})).finally(done)
 
     window.api?.getInstalledVersionsFull?.().then((l:any)=> set({installedVersions: l||[]})).catch(()=>{}).finally(done)
 

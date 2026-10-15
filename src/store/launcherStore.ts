@@ -5,6 +5,11 @@ type Server = { id:string; name:string; ip:string; port:number; type:string; des
 export type Profile = { id:string; name:string; icon:string; version:string; loader:'vanilla'|'fabric'|'forge'; ram:{min:string;max:string}; serverIp?:string }
 type Config = { ram:{min:string;max:string}; javaPath:string; resolution:{w:number;h:number}; servers:Server[]; lastVersion?:string; lastLoader?:'vanilla'|'fabric'|'forge'; lastAccountUuid?:string; cleanupOldOnUpdate?:boolean; uiZoom?:number; curseforgeKey?:string; serversVersion?:number; theme?:string; profiles?:Profile[]; votes?:Record<string,number>; discordClientId?:string }
 
+// Los logs llegan en ráfagas (miles de líneas durante el lanzamiento): se agrupan en
+// tandas de 150ms para que React no se congele y la ventana no quede "No responde".
+let logBuf: string[] = []
+let logFlush: ReturnType<typeof setTimeout> | null = null
+
 export const useStore = create<{
   versions:any[]|null; latest:any; selectedVersion:string; loader:'vanilla'|'fabric'|'forge';
   accounts:Account[]; activeAccount:Account|null;
@@ -19,5 +24,13 @@ export const useStore = create<{
   logs: [], progress: null, launching:false,
   installedVersions: [],
   set: (p)=> set(p),
-  addLog: (s)=> set(st=>({logs:[...st.logs.slice(-400), s]}))
+  addLog: (s)=>{
+    logBuf.push(s)
+    if (logFlush) return
+    logFlush = setTimeout(()=>{
+      logFlush = null
+      const lines = logBuf; logBuf = []
+      if (lines.length) set(st=>({logs:[...st.logs.slice(-400), ...lines].slice(-400)}))
+    }, 150)
+  }
 }))

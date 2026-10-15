@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1317",
+      "icon": "🚀",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.17 — Versiones sin wifi y lanzamientos más rápidos",
+      "body": "Ya sin internet: la sección Versiones muestra al instante lo que tienes instalado en disco (y usa la última lista de Mojang guardada) en lugar de quedarse cargando. Los lanzamientos ahora son más rápidos: ya no se revalidan miles de archivos de assets en cada partida ni se consulta la red si la versión ya está en disco. Además, si Minecraft cierra con error, Hydra guarda un informe con la salida real del juego para copiarlo y pegarlo en Discord, y la consola de logs ya no satura la ventana durante las descargas."
+    },
+    {
       "id": "v1316",
       "icon": "✨",
       "tag": "Launcher",

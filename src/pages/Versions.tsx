@@ -25,6 +25,10 @@ export default function Versions(){
   const refreshInstalled = ()=>{ window.api?.getInstalled?.().then((l:string[])=> setInstalled(l||[])).catch(()=>{}) }
   useEffect(refreshInstalled,[])
 
+  // sin lista de Mojang (sin wifi y sin caché): muestra lo que hay en disco, no una pantalla de carga eterna
+  const offline = !!versions && versions.length === 0
+  useEffect(()=>{ if(offline) setPanel('installed') },[offline])
+
   const delVersion = async (id:string, e:React.MouseEvent) => {
     e.stopPropagation()
     if (!confirm(`¿Eliminar la versión "${id}" y todos sus archivos del disco?\n(Es seguro: se puede volver a descargar)`)) return
@@ -52,9 +56,12 @@ export default function Versions(){
     if (id.toLowerCase().includes('fabric')) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
     if (id.toLowerCase().includes('neoforge')) return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
     if (id.toLowerCase().includes('forge')) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
-    if (installed.includes(id)) return {label:'VANILLA',cls:'bg-white/15 text-white',icon:'⬢'}
+    const lid = id.toLowerCase()
+    if (installed.some(x=>{const n=x.toLowerCase(); return n.startsWith('fabric-loader') && n.endsWith('-'+lid)})) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
+    if (installed.some(x=>{const n=x.toLowerCase(); return n.includes('forge') && n.includes(lid)})) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
     if (loader==='fabric') return {label:'FABRIC',cls:'bg-violet-500/20 text-violet-300 border border-violet-500/30',icon:'⚡'}
     if (loader==='forge') return {label:'FORGE',cls:'bg-amber-500/20 text-amber-300 border border-amber-500/30',icon:'🔨'}
+    if (installed.includes(id)) return {label:'VANILLA',cls:'bg-white/15 text-white',icon:'⬢'}
     return {label:'VANILLA',cls:'bg-white/10 text-white/70 border border-white/10',icon:'⬢'}
   }
 
@@ -130,6 +137,11 @@ export default function Versions(){
 
       {/* Contenido */}
       <div className="flex-1 min-w-0 space-y-4">
+        {offline && (
+          <div className="glass rounded-xl px-4 py-2.5 text-xs text-amber-300/90 border border-amber-500/25">
+            📴 Sin conexión con Mojang — se muestran solo las versiones instaladas en disco. El resto aparecerá cuando vuelva el wifi.
+          </div>
+        )}
         <div className="flex flex-wrap gap-3 items-center">
           <h2 className="font-display text-2xl font-bold">{panelList.find(p=>p.id===panel)?.icon} {panelList.find(p=>p.id===panel)?.label}</h2>
           <span className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">{panel==='installed' ? `${filtered.length} en disco` : `${versions.length} disponibles`}</span>
