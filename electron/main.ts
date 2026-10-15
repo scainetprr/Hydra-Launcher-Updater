@@ -271,6 +271,9 @@ app.whenReady().then(async () => {
   const isDev = !!process.env.VITE_DEV_SERVER_URL
   const shot = !!process.env.HYDRA_SHOT
 
+  // Actualización detectada → limpieza total de archivos del launcher (conserva solo .minecraft)
+  if (!isDev && !shot) wipeLauncherFilesOnUpdate()
+
   // Auto-updater en producción (registrado antes de cualquier chequeo)
   if (!isDev) {
     autoUpdater.on('update-available', (info) => {
@@ -1254,6 +1257,49 @@ ipcMain.handle('launch', async (_e, opts:any) => {
   }
 })
 
+// --- LIMPIEZA TOTAL AL ACTUALIZAR ---
+// Al detectar que cambió la versión (marcador .minecraft\hydra-last-version), borra TODOS los
+// archivos del launcher: config, cuentas, stats, crashes, Java gestionada, cachés de Electron,
+// caché del actualizador e instaladores antiguos. Conserva SOLO los datos del juego en .minecraft
+// (versiones instaladas, mods, mundos, assets, bibliotecas...). Primera ejecución sin marcador:
+// solo escribe el marcador (no borra nada).
+const LAST_VERSION_MARKER = path.join(ROOT, 'hydra-last-version')
+function wipeLauncherFilesOnUpdate(): void {
+  try {
+    const cur = app.getVersion()
+    let prev = ''
+    try { prev = fs.existsSync(LAST_VERSION_MARKER) ? fs.readFileSync(LAST_VERSION_MARKER, 'utf-8').trim() : '' } catch {}
+    if (prev === cur) return
+    const rm = (p: string) => {
+      try { if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true }) } catch (e) { console.log('[wipe] no se pudo borrar', p, String(e)) }
+    }
+    if (prev) {
+      console.log(`[wipe] actualización ${prev} → ${cur}: borrando archivos del launcher (se conserva .minecraft)`)
+      // 1) datos del launcher dentro de .minecraft (NO versiones/mods/mundos)
+      rm(HYDRA_DIR)
+      rm(path.join(ROOT, 'hydra-config.json'))
+      rm(path.join(ROOT, 'hydra-accounts.json'))
+      rm(path.join(ROOT, 'hydra-stats.json'))
+      rm(path.join(ROOT, 'hydra-crashes'))
+      // 2) todo el userData de Electron (cachés, Local Storage, Preferencias, logs...)
+      try {
+        const ud = app.getPath('userData')
+        for (const e of fs.readdirSync(ud)) rm(path.join(ud, e))
+      } catch (e) { console.log('[wipe] userData', String(e)) }
+      // 3) caché del actualizador e instaladores antiguos (descargas/escritorio/tmp)
+      try { rm(path.join(os.homedir(), 'AppData', 'Local', 'hydra-launcher-updater')) } catch {}
+      try { cleanupOldInstallers(cur) } catch {}
+      console.log('[wipe] limpieza completa')
+    } else {
+      console.log('[wipe] primera ejecución con marcador de versión — sin versión anterior que limpiar')
+    }
+    try {
+      if (!fs.existsSync(ROOT)) fs.mkdirSync(ROOT, { recursive: true })
+      fs.writeFileSync(LAST_VERSION_MARKER, cur)
+    } catch {}
+  } catch (e) { console.error('[wipe]', e) }
+}
+
 // --- CLEANUP instaladores antiguos (descargas / escritorio) ---
 function cleanupOldInstallers(currentVersion: string): number {
   const dirs: string[] = []
@@ -1866,6 +1912,25 @@ function diagnoseLaunchFailure(out: string, code: number | null, javaExe: string
         `Instala Adoptium Temurin JRE ${need} desde adoptium.net/temurin (Windows x64) — o actualiza Hydra Launcher: desde la v1.3.17 la descarga y usa sola.`,
         'En Ajustes → Java deja la ruta en automático (sin Java personalizada).',
         'Si tienes varias Javas instaladas, desinstala las viejas (Panel de control → Programas) para evitar que se elija la incorrecta.'
+      ]
+    }
+  }
+  // 1b) Crash NATIVO del JVM (hs_err_pid): casi siempre el driver de gráficos — p.ej. al
+  // compilar shaders al entrar a un servidor con GPUs Intel viejas (ig*icd64.dll)
+  if (has(/EXCEPTION_ACCESS_VIOLATION|hs_err_pid|crash happened outside the Java Virtual Machine|Problematic frame/i)) {
+    const dll = (t.match(/\[([A-Za-z0-9_]+\.dll)\+0x/i) || [])[1] || ''
+    const vendor = /ig\w*icd|igd|intel/i.test(dll) ? 'Intel' : /^nv|nvidia/i.test(dll) ? 'NVIDIA' : /^(ati|amd)|aticfx|atidxx|amdx/i.test(dll) ? 'AMD' : ''
+    const shaders = has(/glLinkProgram|compileProgram|GlProgram|ShaderSource|glCompileShader/i)
+    return {
+      titulo: 'Crash del driver de gráficos (no es Hydra, ni la cuenta, ni el servidor)',
+      problema: `Minecraft crasheó en código nativo de tu PC${dll ? ` (${dll}${vendor ? ` — gráficos ${vendor}` : ''})` : ''}${shaders ? ' mientras compilaba shaders al entrar' : ' mientras renderizaba'} — un fallo 0xc0000005 del driver, no de Java ni del launcher.`,
+      soluciones: [
+        vendor
+          ? `Actualiza el driver de gráficos ${vendor}: Windows Update → Actualización opcional, o la web de ${vendor} (en GPUs viejas, busca el último driver de tu modelo exacto).`
+          : 'Actualiza los drivers de tu tarjeta gráfica (NVIDIA/AMD/Intel) desde su web o Windows Update.',
+        'Mientras tanto: en Opciones de video baja Gráficos a "Rápido" y quita shaders/resource packs (en servidores, quita el resource pack del server).',
+        'Si pasa siempre al entrar a un servidor, prueba otra versión de Minecraft (algunas usan menos efectos al cargar).',
+        'El informe completo del JVM está en .minecraft\\hs_err_pid*.log — compártelo si el problema sigue.'
       ]
     }
   }

@@ -2,6 +2,14 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "v1319",
+      "icon": "🧹",
+      "tag": "Launcher",
+      "date": "15/10/2026",
+      "title": "Hydra v1.3.19 — Limpieza total al actualizar y nombre corregido",
+      "body": "Ahora, cada vez que instalas una actualización, Hydra borra todos sus archivos viejos (cachés de la interfaz, instaladores anteriores, datos internos y hasta la configuración y cuentas guardadas) y conserva únicamente lo tuyo de Minecraft: versiones instaladas, mods y mundos. Ten en cuenta que tras actualizar tendrás que volver a agregar tu cuenta. También se corrigió el nombre de la ventana: ahora es \"Hydra Launcher\" (antes aparecía \"Definitivo\" en los juegos detectados de Discord). Además, la ventana de diagnóstico ahora reconoce los crashes del driver de gráficos (error 0xc0000005 al compilar shaders al entrar a un servidor, típico en GPUs Intel viejas) y te dice exactamente qué driver actualizar."
+    },
+    {
       "id": "v1318",
       "icon": "🪟",
       "tag": "Launcher",
