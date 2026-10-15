@@ -2,6 +2,14 @@
   "updated": "2026-10-14",
   "posts": [
     {
+      "id": "v1316",
+      "icon": "✨",
+      "tag": "Launcher",
+      "date": "14/10/2026",
+      "title": "Hydra v1.3.16 — Estrellitas de fondo al estilo de la web",
+      "body": "El launcher ahora tiene un fondo animado: estrellitas (blanco, rojo y azul) que flotan suavemente detrás de todo el contenido, con la misma estética que la web oficial de Hydra Studio & HyperHard Network."
+    },
+    {
       "id": "v1315",
       "icon": "🐞",
       "tag": "Launcher",

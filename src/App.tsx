@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { useStore } from './store/launcherStore'
 
 const Home = lazy(() => import('./pages/Home'))
@@ -133,6 +133,7 @@ export default function App(){
         </aside>
 
         <main className="flex-1 min-w-0 bg-gradient-to-br from-[#07070a] via-[#0b0b14] to-[#07070a] relative overflow-hidden">
+          <StarField/>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full blur-[90px] opacity-20 bg-blob-1"/>
             <div className="absolute -bottom-40 -left-40 w-[620px] h-[620px] rounded-full blur-[90px] opacity-15 bg-blob-2"/>
@@ -154,6 +155,40 @@ export default function App(){
       </div>
     </div>
   )
+}
+
+function StarField(){
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(()=>{
+    const cv = ref.current; if(!cv) return
+    const cx = cv.getContext('2d'); if(!cx) return
+    let raf = 0
+    const dpr = window.devicePixelRatio || 1
+    const W = ()=>cv.clientWidth, H = ()=>cv.clientHeight
+    const rs = ()=>{ cv.width = Math.max(1,Math.floor(W()*dpr)); cv.height = Math.max(1,Math.floor(H()*dpr)); cx.setTransform(dpr,0,0,dpr,0,0) }
+    rs(); window.addEventListener('resize', rs)
+    const colors = ['#ffffff','#e11d2e','#2b7fff']
+    const P = Array.from({length:90},(_,i)=>({
+      x: Math.random()*W(), y: Math.random()*H(),
+      r: Math.random()*1.8+0.4, s: Math.random()*1.7+0.55,
+      c: colors[i%3]
+    }))
+    const anim = ()=>{
+      cx.clearRect(0,0,W(),H())
+      for(const p of P){
+        p.y -= p.s
+        if(p.y < 0){ p.y = H(); p.x = Math.random()*W() }
+        cx.globalAlpha = 0.7
+        cx.fillStyle = p.c
+        cx.beginPath(); cx.arc(p.x,p.y,p.r,0,Math.PI*2); cx.fill()
+      }
+      cx.globalAlpha = 1
+      raf = requestAnimationFrame(anim)
+    }
+    anim()
+    return ()=>{ cancelAnimationFrame(raf); window.removeEventListener('resize', rs) }
+  },[])
+  return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none"/>
 }
 
 function PageLoading(){
