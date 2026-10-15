@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, clipboard } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
@@ -648,6 +648,34 @@ async function installManagedJava(major: number, send: (m: string) => void): Pro
   }
 }
 
+// Pide permiso al usuario ANTES de descargar una Java que no tiene (propuesta de uso):
+// si ya está instalada la usa sin molestar; si falta, ventana emergente explicando qué y por qué.
+async function ensureManagedJava(major: number, mcVer: string, send: (m: string) => void): Promise<{ ok: boolean; javaPath: string; error?: string }> {
+  const existing = getManagedJavaExe(major)
+  if (existing) return { ok: true, javaPath: existing }
+  const box: any = {
+    type: 'question',
+    buttons: [`Sí, instalar Java ${major} y jugar`, 'Ahora no'],
+    defaultId: 0,
+    cancelId: 1,
+    title: 'Hydra Launcher — Java requerida',
+    message: `Para jugar Minecraft ${mcVer} necesitas Java ${major}.`,
+    detail: `En tu PC no se encontró Java ${major} (las versiones antiguas, como Java 8, no sirven para esta versión).\n\nHydra puede instalar Adoptium Temurin ${major} — gratuita, ~45 MB, sin permisos de administrador y solo se hace una vez. ¿La instalamos ahora?`,
+    noLink: true
+  }
+  let accept = false
+  try {
+    const w = win && !win.isDestroyed() ? win : undefined
+    const r = w ? await dialog.showMessageBox(w, box) : await dialog.showMessageBox(box)
+    accept = r.response === 0
+  } catch { accept = false }
+  if (!accept) {
+    return { ok: false, javaPath: '', error: `Se necesita Java ${major} para jugar ${mcVer} y declinaste la instalación automática.\n\nPuedes instalarla tú mismo desde https://adoptium.net/temurin/releases/ (JRE ${major}, Windows x64) o vuelve a intentarlo y acepta en la ventana.` }
+  }
+  send(`  ✓ Instalación aceptada — descargando Adoptium Temurin ${major}...`)
+  return installManagedJava(major, send)
+}
+
 ipcMain.handle('get-pc-scan', async () => {
   const managed = getManagedJavaExe()
   const all = findJavaCandidates()
@@ -1091,9 +1119,9 @@ ipcMain.handle('launch', async (_e, opts:any) => {
         const reason = cands.length
           ? `las detectadas no llegan a Java ${needJava} (maxima: Java ${Math.max(...cands.map(p => javaMajorOf(p)))})`
           : 'no hay Java en tu PC'
-        send(`  ⚠ ${reason} — instalando Adoptium Temurin ${needJava} automaticamente...`)
-        const inst = await installManagedJava(needJava, send)
-        if (!inst.ok) throw new Error(`Java insuficiente para ${mcVersion} (necesita Java ${needJava}) y la instalacion automatica fallo: ${inst.error}\n\nDescarga Adoptium tu mismo: https://adoptium.net/temurin/releases/ (JRE ${needJava}, Windows x64)`)
+        send(`  ⚠ ${reason} — pidiendo permiso para instalar Adoptium Temurin ${needJava}...`)
+        const inst = await ensureManagedJava(needJava, mcVersion, send)
+        if (!inst.ok) throw new Error(inst.error || `Java insuficiente para ${mcVersion} (necesita Java ${needJava}). Instálala desde https://adoptium.net/temurin/releases/ (JRE ${needJava}, Windows x64)`)
         javaPath = inst.javaPath
       }
     } else {
@@ -1102,9 +1130,9 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       const customVer = javaMajorOf(javaPath)
       if (customVer && customVer < needJava) {
         // el Java configurado en Ajustes no sirve para esta version → no lanzar, instalar el correcto
-        send(`  ⚠ El Java custom (Java ${customVer}) es demasiado viejo para ${mcVersion} (necesita Java ${needJava}) — instalando el correcto...`)
-        const inst = await installManagedJava(needJava, send)
-        if (!inst.ok) throw new Error(`Tu Java configurado (Java ${customVer}) no sirve para ${mcVersion} (necesita Java ${needJava}) y la instalacion automatica fallo: ${inst.error}\n\nDescarga Adoptium tu mismo: https://adoptium.net/temurin/releases/ (JRE ${needJava}, Windows x64)`)
+        send(`  ⚠ El Java custom (Java ${customVer}) es demasiado viejo para ${mcVersion} (necesita Java ${needJava}) — pidiendo permiso para instalar el correcto...`)
+        const inst = await ensureManagedJava(needJava, mcVersion, send)
+        if (!inst.ok) throw new Error(`Tu Java configurado (Java ${customVer}) no sirve para ${mcVersion} (necesita Java ${needJava}).\n\n${inst.error || `Instala Java ${needJava} desde https://adoptium.net/temurin/releases/ (JRE ${needJava}, Windows x64)`}`)
         javaPath = inst.javaPath
       }
     }
@@ -1164,7 +1192,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       launcher.on(ev, (e:any)=> {
         const msg = typeof e === 'string' ? e : JSON.stringify(e).slice(0,1200)
         send(`[${ev}] ${msg}`)
-        if (ev === 'data') { recentOut.push(msg); if (recentOut.length > 60) recentOut.shift() }
+        if (ev === 'data') { recentOut.push(msg); if (recentOut.length > 120) recentOut.shift() }
       })
     })
     // algunos builds emiten 'arguments'
@@ -1183,8 +1211,10 @@ ipcMain.handle('launch', async (_e, opts:any) => {
         // salida anormal: guarda informe con la última salida de la consola del juego
         // (aquí caen los errores reales: Java incompatible, falta de RAM, mods rotos...)
         if (code && code !== 0) {
-          recordCrash(opts, `Minecraft terminó con código ${code} (no salió por su cuenta)`, recentOut.join('\n'))
+          const report = recordCrash(opts, `Minecraft terminó con código ${code} (no salió por su cuenta)`, recentOut.join('\n'))
           send(`  ⚠ salida anormal (code ${code}) — informe guardado en hydra-crashes`)
+          // ventana emergente con diagnostico legible (0xC000013A = el usuario cerro la consola a mano → no molesta)
+          if (code !== -1073741510) showLaunchFailureDialog(opts, recentOut.join('\n'), code, javaPath, mcVersion, report)
         }
         recordSessionEnd(code === 0 || code == null)
         try { win?.webContents.send('session-end', code === 0 || code == null) } catch {}
@@ -1193,7 +1223,8 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       })
       proc.on('error', (e:any)=> {
         send(`  proceso error ${String(e)}`)
-        recordCrash(opts, `No se pudo ejecutar el proceso Java: ${String(e)}`, recentOut.join('\n'))
+        const report = recordCrash(opts, `No se pudo ejecutar el proceso Java: ${String(e)}`, recentOut.join('\n'))
+        showLaunchFailureDialog(opts, recentOut.join('\n'), null, javaPath, mcVersion, report)
         recordSessionEnd(false)
         try { win?.webContents.send('session-end', false) } catch {}
         lastIdleAt = 0
@@ -1814,6 +1845,194 @@ function recordCrash(opts: any, error: string, stack: string): string | null {
     writeStatsFile(s)
     return file
   } catch { return null }
+}
+
+// --- DIAGNOSTICO LEGIBLE CUANDO MINECRAFT CIERRA CON ERROR ---
+// Traduce la salida cruda de la consola a un problema + soluciones accionables en español.
+function diagnoseLaunchFailure(out: string, code: number | null, javaExe: string, mcVer: string): { titulo: string; problema: string; soluciones: string[] } {
+  const t = out || ''
+  const has = (re: RegExp) => re.test(t)
+
+  // 1) Java demasiado viejo (el caso de la amiga): class file 65.0 = Java 21, su runtime llega a 52.0 = Java 8
+  const cv = t.match(/class file version (\d+)/i)
+  if (cv && has(/UnsupportedClassVersionError|compiled by a more recent version of the Java/i)) {
+    const need = Math.max(parseInt(cv[1], 10) - 44, 8)
+    const up = t.match(/only recognizes class file versions up to (\d+)/i)
+    const have = up ? Math.max(parseInt(up[1], 10) - 44, 0) : (javaExe ? javaMajorOf(javaExe) : 0)
+    return {
+      titulo: 'Java demasiado viejo',
+      problema: `Tu PC está usando Java ${have || '?'} pero ${mcVer || 'esta versión'} necesita Java ${need}. Minecraft no puede arrancar con esa Java.`,
+      soluciones: [
+        `Instala Adoptium Temurin JRE ${need} desde adoptium.net/temurin (Windows x64) — o actualiza Hydra Launcher: desde la v1.3.17 la descarga y usa sola.`,
+        'En Ajustes → Java deja la ruta en automático (sin Java personalizada).',
+        'Si tienes varias Javas instaladas, desinstala las viejas (Panel de control → Programas) para evitar que se elija la incorrecta.'
+      ]
+    }
+  }
+  // 2) Java demasiado NUEVA para mods/Forge antiguos (module access)
+  if (has(/InaccessibleObjectException|module .+ does not (open|opens|add|export)|Unable to make .+ accessible/i)) {
+    return {
+      titulo: 'Java incompatible con mods antiguos',
+      problema: `Los mods/Forge de esta versión no soportan la Java instalada${javaExe ? ` (${javaExe})` : ''}.`,
+      soluciones: [
+        'En Ajustes → Java pon una ruta de Java 8/17 (la que pida la versión antigua) o déjalo en automático y vuelve a lanzar.',
+        'Si instalaste una Java nueva, no la elimines: elige otra para esta versión.',
+        'Actualiza los mods o cambia a una versión más reciente de Minecraft.'
+      ]
+    }
+  }
+  // 3) Se acabó la RAM → subirla
+  if (has(/OutOfMemoryError|Java heap space|GC overhead limit/i)) {
+    return {
+      titulo: 'Se acabó la memoria (RAM)',
+      problema: 'Minecraft se quedó sin RAM — típico con muchos mods o texturas de 128x+.',
+      soluciones: [
+        'Ajustes → RAM asignada: súbela (p. ej. 4G si tienes 8GB de equipo).',
+        'Cierra Chrome, Discord u otros programas pesados antes de jugar.',
+        'Si ya está en el máximo, baja los mods o pon texturas más ligeras.'
+      ]
+    }
+  }
+  // 4) Xmx mayor que la RAM real → bajarla
+  if (has(/Could not reserve enough space|Invalid maximum heap size|Insufficient memory for|reserve/i)) {
+    return {
+      titulo: 'RAM asignada mayor que la de tu equipo',
+      problema: `El launcher pidió más memoria de la que tu PC puede dar (salida: código ${code ?? '?'}).`,
+      soluciones: [
+        'Ajustes → RAM asignada: baja a 2G–4G (nunca más de ~la mitad de tu RAM total).',
+        'Cierra programas abiertos y vuelve a intentarlo.'
+      ]
+    }
+  }
+  // 5) Argumentos JVM inválidos
+  if (has(/Could not create the Java Virtual Machine|Unrecognized VM option|Unrecognized option|Could not find the main class/i)) {
+    return {
+      titulo: 'Argumentos de Java inválidos',
+      problema: 'La JVM rechazó los parámetros de arranque (RAM personalizada o Java inadecuada).',
+      soluciones: [
+        'Ajustes → RAM: usa valores estándar (2G/4G) sin textos raros.',
+        'Ajustes → Java: pon la ruta en automático y reintenta.',
+        'Prueba otra versión desde Versiones por si esa necesita otra Java.'
+      ]
+    }
+  }
+  // 6) Permisos / antivirus
+  if (has(/Access is denied|Permission denied|Sharing violation|EPERM|unable to create.*file/i)) {
+    return {
+      titulo: 'Permisos bloqueados',
+      problema: 'Windows o el antivirus impidieron leer/escribir archivos del juego.',
+      soluciones: [
+        'Añade una excepción en tu antivirus para la carpeta .minecraft y Hydra.',
+        'Cierra otros launchers/Minecraft abiertos y reintenta.',
+        'Ejecuta Hydra Launcher como administrador (clic derecho → Ejecutar como administrador).'
+      ]
+    }
+  }
+  // 7) Cuenta / sesión
+  if (has(/Invalid session|Failed to authenticate|Unauthorized|HTTP 401|HTTP 403|Forbidden|refreshMicrosoft|access token/i)) {
+    return {
+      titulo: 'Sesión de cuenta inválida',
+      problema: 'El token de tu cuenta venció o es inválido — Mojang rechazó el inicio.',
+      soluciones: [
+        'En Cuentas: elimina y vuelve a agregar tu cuenta (Microsoft u offline).',
+        'Comprueba tu conexión e inténtalo de nuevo.',
+        'Prueba con una cuenta offline si no vas a entrar a servidores premium.'
+      ]
+    }
+  }
+  // 8) Archivos dañados / mods incompatibles
+  if (has(/ClassNotFoundException|NoClassDefFoundError|Unable to access jarfile|NoSuchMethodError|Mixin\w*Error|InvalidInjectionException|VerifyError/i)) {
+    const mixin = has(/Mixin\w*Error|InvalidInjectionException|NoSuchMethodError/i)
+    return {
+      titulo: mixin ? 'Mods incompatibles con la versión' : 'Archivos del juego dañados',
+      problema: mixin
+        ? `Un mod no encaja con esta versión/loader (salida: código ${code ?? '?'}).`
+        : 'Falta o está corrupto un archivo de la versión.',
+      soluciones: mixin
+        ? [
+            'Quita los mods recién añadidos (carpeta mods) y vuelve a lanzar.',
+            'Comprueba que los mods sean de la misma versión y loader (Fabric/Forge).',
+            'Si es un modpack, reinstálalo desde Mods → Modpacks.'
+          ]
+        : [
+            'Vuelve a lanzar la versión: Hydra re-descarga lo que falte.',
+            'Si sigue, borra la carpeta de la versión en .minecraft/versions/<version> y lanza otra vez.',
+            'Revisa Ajustes → Logs para ver el archivo exacto que falló.'
+          ]
+    }
+  }
+  // 9) GPU / ventanas
+  if (has(/GLFW error|Window creation failed|Failed to initialize OpenGL|No available OpenGL/i)) {
+    return {
+      titulo: 'Fallo gráfico al abrir la ventana',
+      problema: 'Minecraft no pudo crear la ventana de juego (GPU/drivers).',
+      soluciones: [
+        'Actualiza los drivers de tu tarjeta gráfica (NVIDIA/AMD/Intel).',
+        'Cierra overlays: Discord, OBS, Steam, MSI Afterburner.',
+        'Prueba con la resolución por defecto (Ajustes → Resolución).'
+      ]
+    }
+  }
+  // 10) Java de otra arquitectura
+  if (has(/Error loading shared library|not a valid Win32 application|Bad CPU type|wrong ELF class/i)) {
+    return {
+      titulo: 'Java de arquitectura incorrecta',
+      problema: 'La Java instalada no es compatible con tu Windows (32/64 bits).',
+      soluciones: [
+        'Instala Adoptium Temurin de Windows x64 desde adoptium.net/temurin.',
+        'Desinstala las Javas de 32 bits antiguas.'
+      ]
+    }
+  }
+  // fallback
+  return {
+    titulo: 'Minecraft terminó con error',
+    problema: `El juego se cerró con código ${code ?? '?'} sin un error reconocido.`,
+    soluciones: [
+      'Mira las últimas líneas de la consola de abajo — ahí está el detalle real.',
+      'Vuelve a intentarlo: a la 1ª ejecución Hydra descarga todo y a veces tarda.',
+      'Si insiste, copia el diagnóstico y compártelo para poder revisarlo.'
+    ]
+  }
+}
+
+let launchDialogOpen = false
+function showLaunchFailureDialog(opts: any, outText: string, code: number | null, javaExe: string, mcVer: string, reportFile: string | null) {
+  if (launchDialogOpen) return
+  launchDialogOpen = true
+  const d = diagnoseLaunchFailure(outText, code, javaExe, mcVer)
+  const lastLines = outText.split('\n').filter(Boolean).slice(-15).join('\n')
+  const report = [
+    `Hydra ${app.getVersion()} | MC ${mcVer || opts?.version || '?'} | loader ${opts?.loader || 'vanilla'} | exit ${code ?? '?'}`,
+    `Java: ${javaExe || opts?.javaPath || 'auto'} | RAM: ${opts?.ram?.max || '4G'}`,
+    `Problema: ${d.problema}`,
+    '',
+    lastLines
+  ].join('\n')
+  const sols = d.soluciones.map((s, i) => `${i + 1}. ${s}`).join('\n')
+  const boxOpts: any = {
+    type: 'error',
+    buttons: ['Copiar diagnóstico', 'Cerrar'],
+    defaultId: 1,
+    cancelId: 1,
+    title: 'Hydra Launcher — Minecraft no pudo abrir',
+    message: d.problema,
+    detail: `${d.titulo}\n\nPosibles soluciones:\n${sols}\n\n${reportFile ? `Informe guardado: ${reportFile}\n` : ''}Últimas líneas de la consola:\n${lastLines || '(sin salida)'}\n\nSi nada funciona, copia el diagnóstico y pégalo donde te pidan ayuda.`,
+    noLink: true
+  }
+  const w = win && !win.isDestroyed() ? win : undefined
+  const p = w ? dialog.showMessageBox(w, boxOpts) : dialog.showMessageBox(boxOpts)
+  p.then(r => {
+    launchDialogOpen = false
+    if (r.response === 0) {
+      try {
+        clipboard.writeText(report)
+        const info: any = { type: 'info', buttons: ['OK'], title: 'Hydra Launcher', message: 'Diagnóstico copiado', detail: 'Pégalo donde te lo pidan (Discord, foro, soporte).', noLink: true }
+        const w2 = win && !win.isDestroyed() ? win : undefined
+        if (w2) dialog.showMessageBox(w2, info); else dialog.showMessageBox(info)
+      } catch {}
+    }
+  }).catch(() => { launchDialogOpen = false })
 }
 
 ipcMain.handle('get-pending-crashes', () => {

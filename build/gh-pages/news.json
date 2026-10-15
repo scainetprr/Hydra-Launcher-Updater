@@ -1,6 +1,14 @@
 {
-  "updated": "2026-10-14",
+  "updated": "2026-10-15",
   "posts": [
+    {
+      "id": "v1318",
+      "icon": "🪟",
+      "tag": "Launcher",
+      "date": "15/10/2026",
+      "title": "Hydra v1.3.18 — Ventana de diagnóstico cuando Minecraft no abre",
+      "body": "Si Minecraft cierra con error, ahora aparece una ventana emergente que traduce lo que pasó (Java viejo, RAM de más, mods rotos, sesión inválida...) y da las posibles soluciones paso a paso, con un botón para copiar el diagnóstico y pegarlo en Discord. Además, cuando falta la Java correcta para una versión, Hydra pide permiso con una ventana antes de instalarla (~45 MB, Adoptium Temurin). También quedó arreglada la comprobación de actualizaciones: el launcher ahora sí encuentra las versiones nuevas."
+    },
     {
       "id": "v1317",
       "icon": "🚀",
