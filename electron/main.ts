@@ -448,7 +448,7 @@ function setIdlePresence(cfg?: any): void {
     discordSetActivity(String(c.discordClientId), {
       details: 'Jugando a Hydra Launcher',
       state: ip ? `${label} • ${ip}` : 'Menú principal',
-      buttons: [{ label: 'Hydra Launcher', url: 'https://scainetprr.github.io/hydra-launcher-web/' }],
+      buttons: [{ label: 'Hydra Launcher', url: 'https://launcher.hyperhard.space/' }],
       instance: false
     }).catch(() => {})
   } catch {}
@@ -996,7 +996,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
         details: srvName ? `Jugando en ${srvName}` : `Minecraft ${opts.version}`,
         state: `${opts.account?.name} • Hydra Launcher`,
         startTimestamp: Math.floor(Date.now() / 1000),
-        buttons: [{ label: 'Hydra Launcher', url: 'https://scainetprr.github.io/hydra-launcher-web/' }]
+        buttons: [{ label: 'Hydra Launcher', url: 'https://launcher.hyperhard.space/' }]
       }).catch(()=>{})
     }
     const { Client } = await import('minecraft-launcher-core')
