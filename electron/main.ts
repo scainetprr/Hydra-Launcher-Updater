@@ -1208,9 +1208,13 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     // MCLC devuelve null en vez de throw cuando no puede arrancar (p.ej. Java incompatible) — antes esto pasaba como exito silencioso
     if (!proc) throw new Error('Minecraft no pudo arrancar (proceso nulo). Tu Java puede ser incompatible con esta version — si tienes varias javas instaladas, prueba a elegir otra en Ajustes → Java.')
     send(`Minecraft lanzado PID ${proc?.pid || '?'}`)
+    // el launcher se oculta mientras Minecraft corre (se restaura en close/error)
+    try { if (win && !win.isDestroyed()) win.hide() } catch {}
     if (proc?.on) {
       proc.on('close', (code:number)=> {
         send(`  proceso cerrado code ${code}`)
+        // Minecraft terminó → el launcher vuelve a aparecer
+        try { if (win && !win.isDestroyed()) { win.show(); win.focus() } } catch {}
         // salida anormal: guarda informe con la última salida de la consola del juego
         // (aquí caen los errores reales: Java incompatible, falta de RAM, mods rotos...)
         if (code && code !== 0) {
@@ -1226,6 +1230,8 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       })
       proc.on('error', (e:any)=> {
         send(`  proceso error ${String(e)}`)
+        // el juego no llegó a arrancar → el launcher vuelve a aparecer
+        try { if (win && !win.isDestroyed()) { win.show(); win.focus() } } catch {}
         const report = recordCrash(opts, `No se pudo ejecutar el proceso Java: ${String(e)}`, recentOut.join('\n'))
         showLaunchFailureDialog(opts, recentOut.join('\n'), null, javaPath, mcVersion, report)
         recordSessionEnd(false)

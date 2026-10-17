@@ -2,6 +2,14 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "v1321",
+      "icon": "🎮",
+      "tag": "Launcher",
+      "date": "2026-10-15",
+      "title": "Hydra se oculta mientras juegas",
+      "body": "Estilo TLauncher: cuando Minecraft abre, el launcher se cierra de la vista (sigue funcionando en segundo plano) y al terminar la partida regresa con todo donde lo dejaste. Si el juego falla, vuelve junto con la ventana de diagnóstico."
+    },
+    {
       "id": "v1320",
       "icon": "🔗",
       "tag": "Web",
