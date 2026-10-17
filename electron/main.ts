@@ -1264,11 +1264,10 @@ ipcMain.handle('launch', async (_e, opts:any) => {
 })
 
 // --- LIMPIEZA TOTAL AL ACTUALIZAR ---
-// Al detectar que cambió la versión (marcador .minecraft\hydra-last-version), borra TODOS los
-// archivos del launcher: config, cuentas, stats, crashes, Java gestionada, cachés de Electron,
-// caché del actualizador e instaladores antiguos. Conserva SOLO los datos del juego en .minecraft
-// (versiones instaladas, mods, mundos, assets, bibliotecas...). Primera ejecución sin marcador:
-// solo escribe el marcador (no borra nada).
+// Al actualizar (marcador .minecraft\hydra-last-version), limpia SOLO la basura:
+// informes de crash, caché del actualizador e instaladores antiguos.
+// Conserva TODO lo del usuario: cuenta, config (RAM/versión/tema), stats, Java gestionada
+// y el localStorage (asistente de primera ejecución). El contenido del juego jamás se toca.
 const LAST_VERSION_MARKER = path.join(ROOT, 'hydra-last-version')
 function wipeLauncherFilesOnUpdate(): void {
   try {
@@ -1280,22 +1279,11 @@ function wipeLauncherFilesOnUpdate(): void {
       try { if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true }) } catch (e) { console.log('[wipe] no se pudo borrar', p, String(e)) }
     }
     if (prev) {
-      console.log(`[wipe] actualización ${prev} → ${cur}: borrando archivos del launcher (se conserva .minecraft)`)
-      // 1) datos del launcher dentro de .minecraft (NO versiones/mods/mundos)
-      rm(HYDRA_DIR)
-      rm(path.join(ROOT, 'hydra-config.json'))
-      rm(path.join(ROOT, 'hydra-accounts.json'))
-      rm(path.join(ROOT, 'hydra-stats.json'))
+      console.log(`[wipe] actualización ${prev} → ${cur}: limpiando basura (se conservan cuenta, config, stats y Java gestionada)`)
       rm(path.join(ROOT, 'hydra-crashes'))
-      // 2) todo el userData de Electron (cachés, Local Storage, Preferencias, logs...)
-      try {
-        const ud = app.getPath('userData')
-        for (const e of fs.readdirSync(ud)) rm(path.join(ud, e))
-      } catch (e) { console.log('[wipe] userData', String(e)) }
-      // 3) caché del actualizador e instaladores antiguos (descargas/escritorio/tmp)
       try { rm(path.join(os.homedir(), 'AppData', 'Local', 'hydra-launcher-updater')) } catch {}
       try { cleanupOldInstallers(cur) } catch {}
-      console.log('[wipe] limpieza completa')
+      console.log('[wipe] limpieza de basura completa')
     } else {
       console.log('[wipe] primera ejecución con marcador de versión — sin versión anterior que limpiar')
     }

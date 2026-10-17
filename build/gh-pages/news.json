@@ -2,6 +2,14 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "v1322",
+      "icon": "💾",
+      "tag": "Launcher",
+      "date": "2026-10-16",
+      "title": "Tu cuenta y config ya no se borran al actualizar",
+      "body": "Corregido: las actualizaciones ya no borran tu cuenta, tu configuración (RAM, versión, tema) ni tus estadísticas. Solo se limpian restos inútiles (informes de crash antiguos, cachés del actualizador e instaladores viejos). Además, cada versión del selector rápido muestra su loader: VANILLA, FABRIC, FORGE o NEOFORGE."
+    },
+    {
       "id": "v1321",
       "icon": "🎮",
       "tag": "Launcher",

@@ -174,15 +174,23 @@ export default function Home() {
                   {(installedVersions||[]).length===0 && (
                     <div className="text-xs text-white/45 px-3 py-3">Ninguna versión instalada aún. Instala una desde el navegador de versiones.</div>
                   )}
-                  {(installedVersions||[]).map((iv:any)=>(
+                  {(installedVersions||[]).map((iv:any)=>{
+                    const lv = String(iv.loader||'vanilla').toLowerCase()
+                    const lvLabel = lv==='vanilla' ? 'VANILLA' : lv.toUpperCase()
+                    const lvCls = lv==='fabric' ? 'bg-violet-500/20 text-violet-300' : (lv==='forge'||lv==='neoforge') ? 'bg-amber-500/20 text-amber-300' : 'bg-white/10 text-white/55'
+                    return (
                     <button key={iv.id} onClick={()=>{ set({selectedVersion:iv.id}); setVm(false) }}
                       className={`w-full text-left px-3 py-2 rounded-xl text-sm transition flex items-center gap-2 ${selectedVersion===iv.id?'bg-white text-black font-bold':'hover:bg-white/[0.08] text-white/85'}`}>
                       <span className="text-white/40 text-xs">⬢</span>
                       <span className="truncate">{iv.id}</span>
-                      {iv.type==='snapshot' && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-black shrink-0">SNAP</span>}
-                      {selectedVersion===iv.id && <span className="ml-auto text-xs shrink-0">✓</span>}
+                      <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${selectedVersion===iv.id?'bg-black/10 text-black':lvCls}`}>{lvLabel}</span>
+                        {iv.type==='snapshot' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-black">SNAP</span>}
+                        {selectedVersion===iv.id && <span className="text-xs">✓</span>}
+                      </span>
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
                 <button onClick={()=>{ setVm(false); document.dispatchEvent(new CustomEvent('hydra:tab',{detail:'versions'})) }}
                   className="w-full mt-1 px-3 py-2.5 rounded-xl text-xs font-bold text-white/70 border border-white/10 hover:bg-white/[0.08] transition text-left">
