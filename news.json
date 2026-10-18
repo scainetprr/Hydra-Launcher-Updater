@@ -2,6 +2,14 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "firma",
+      "icon": "⭐",
+      "tag": "Comunidad",
+      "date": "2026-10-18",
+      "title": "Ayúdanos a conseguir la firma de código oficial",
+      "body": "Microsoft y Chrome avisan a algunos usuarios al instalar porque el launcher aún no tiene certificado de firma. Postulamos a SignPath Foundation (firma gratis para OSS) y nos pidieron más visibilidad pública: estrellas en GitHub, menciones y comunidad activa. Si usas Hydra, un simple star en nuestro repo nos acerca muchísimo a conseguirlo — y con ello desaparecerán los avisos de SmartScreen y Chrome para todos. ¡Gracias!"
+    },
+    {
       "id": "v1322",
       "icon": "💾",
       "tag": "Launcher",
