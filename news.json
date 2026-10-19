@@ -2,6 +2,14 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "v1323",
+      "icon": "📡",
+      "tag": "Launcher",
+      "date": "2026-10-19",
+      "title": "Hydra v1.3.23 — Diagnóstico de caídas de servidor",
+      "body": "Si Minecraft se cierra al intentar entrar a un servidor caído o inaccesible, la ventana de diagnóstico ahora lo identifica correctamente: \"Falló la conexión a un servidor — no es Hydra, ni tu Java, ni tu PC\", con el host afectado y los pasos a seguir. Nada que arreglar en tu equipo; cuando el servidor vuelva, entras normal."
+    },
+    {
       "id": "firma",
       "icon": "⭐",
       "tag": "Comunidad",

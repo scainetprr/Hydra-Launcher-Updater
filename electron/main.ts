@@ -2043,6 +2043,20 @@ function diagnoseLaunchFailure(out: string, code: number | null, javaExe: string
       ]
     }
   }
+  // 11) Fallo de conexión a un servidor (netty/NIO) — el juego muere al intentar entrar a un server caído/inaccesible
+  if (has(/AnnotatedConnectException|ConnectException|Connection refused|Connection timed out|No route to host|UnknownHostException|finishConnect|pollConnectNow/i)) {
+    const host = (out.match(/(?:refused: |timed out: |no further information: )([^\s]+)/i) || [])[1] || ''
+    return {
+      titulo: 'Falló la conexión a un servidor (no es Hydra, ni tu Java, ni tu PC)',
+      problema: `Minecraft murió mientras intentaba conectarse por red a un servidor${host ? ` (${host})` : ''} — la conexión TCP falló (server caído, IP incorrecta o sin ruta hacia él).`,
+      soluciones: [
+        'Si era un servidor del Nido: revisa en Discord si está caído o en mantenimiento — el panel del launcher ya lo muestra Offline.',
+        'Si era otro servidor: verifica la IP:puerto y que esté encendido; prueba otro servidor para confirmar que tu conexión va bien.',
+        'Cuando el servidor vuelva, vuelve a intentarlo — en tu equipo no hay nada que arreglar.',
+        'El detalle completo está en el informe guardado (.minecraft\\hydra-crashes).'
+      ]
+    }
+  }
   // fallback
   return {
     titulo: 'Minecraft terminó con error',
