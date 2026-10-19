@@ -17,6 +17,17 @@ if (!(globalThis as any).__filename) (globalThis as any).__filename = __filename
 
 let win: BrowserWindow | null = null
 
+// Sesión de Minecraft en curso (evita lanzar una segunda instancia sobre el mismo .minecraft)
+let mcRunning = false
+let mcRunningInfo = ''
+// Una sola instancia del launcher: si el jugador abre Hydra de nuevo, se enfoca la primera
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+}
+app.on('second-instance', () => {
+  try { if (win && !win.isDestroyed()) { if (win.isMinimized()) win.restore(); win.show(); win.focus() } } catch {}
+})
+
 // Auto-updater config
 autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
@@ -985,6 +996,19 @@ async function refreshMicrosoft(msRefresh: string, send: (m:string)=>void): Prom
 // --- LAUNCH con minecraft-launcher-core ---
 ipcMain.handle('launch', async (_e, opts:any) => {
   const send = (m:string) => { console.log('[launch]', m); win?.webContents.send('launch-log', m) }
+  // ya hay una sesión de Minecraft en curso → aviso y no se lanza otra
+  if (mcRunning) {
+    const aviso = `Ya hay una instancia de Minecraft en curso (${mcRunningInfo}). Cierra esa sesión antes de lanzar otra.`
+    send(`⚠ ${aviso}`)
+    const boxOpts = {
+      type: 'warning' as const, buttons: ['Entendido'], defaultId: 0, noLink: true,
+      title: 'Hydra Launcher — instancia en curso',
+      message: 'Ya hay una instancia de Minecraft en curso',
+      detail: `${mcRunningInfo}\n\nCierra esa sesión antes de lanzar otra. Dos instancias a la vez comparten el mismo .minecraft y pueden causar crashes o perder tu progreso.`
+    }
+    try { if (win && !win.isDestroyed()) await dialog.showMessageBox(win, boxOpts); else await dialog.showMessageBox(boxOpts) } catch {}
+    return { ok: false, alreadyRunning: true, error: aviso }
+  }
   try{
     send(`→ Hydra preparando ${opts.version} (${opts.loader||'vanilla'}) como ${opts.account?.name}...`)
     const cfg = readConfigFile()
@@ -1208,10 +1232,13 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     // MCLC devuelve null en vez de throw cuando no puede arrancar (p.ej. Java incompatible) — antes esto pasaba como exito silencioso
     if (!proc) throw new Error('Minecraft no pudo arrancar (proceso nulo). Tu Java puede ser incompatible con esta version — si tienes varias javas instaladas, prueba a elegir otra en Ajustes → Java.')
     send(`Minecraft lanzado PID ${proc?.pid || '?'}`)
+    mcRunning = true
+    mcRunningInfo = `Minecraft ${mcVersion}${packLoader && packLoader !== 'vanilla' ? ` (${packLoader})` : ''} como ${opts.account?.name || 'jugador'} — PID ${proc?.pid || '?'}`
     // el launcher se oculta mientras Minecraft corre (se restaura en close/error)
     try { if (win && !win.isDestroyed()) win.hide() } catch {}
     if (proc?.on) {
       proc.on('close', (code:number)=> {
+        mcRunning = false; mcRunningInfo = ''
         send(`  proceso cerrado code ${code}`)
         // Minecraft terminó → el launcher vuelve a aparecer
         try { if (win && !win.isDestroyed()) { win.show(); win.focus() } } catch {}
@@ -1229,6 +1256,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
         setIdlePresence()
       })
       proc.on('error', (e:any)=> {
+        mcRunning = false; mcRunningInfo = ''
         send(`  proceso error ${String(e)}`)
         // el juego no llegó a arrancar → el launcher vuelve a aparecer
         try { if (win && !win.isDestroyed()) { win.show(); win.focus() } } catch {}

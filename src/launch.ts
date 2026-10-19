@@ -16,6 +16,8 @@ export async function launchGame(server: QuickServer = null): Promise<boolean> {
     })
     if (!res.ok) {
       addLog(`Error: ${res.error}`)
+      // el aviso de "instancia en curso" ya lo mostró el launcher con un dialogo nativo
+      if (res.alreadyRunning) { set({ launching: false }); return false }
       alert(`Fallo al lanzar:\n${res.error}\n\nRevisa Ajustes -> Logs\nPrueba Version estable 1.21.1 y Java auto.`)
       set({ launching: false })
       return false

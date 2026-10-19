@@ -2,6 +2,14 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "v1324",
+      "icon": "🔒",
+      "tag": "Launcher",
+      "date": "2026-10-19",
+      "title": "Hydra v1.3.24 — Aviso de instancia en curso",
+      "body": "Si intentas lanzar Minecraft mientras ya hay una sesión abierta, Hydra ahora muestra un aviso claro (\"Ya hay una instancia de Minecraft en curso\") con la versión y cuenta de esa sesión, y no arranca una segunda. Además solo puede haber un Hydra abierto a la vez: si lo abres de nuevo por error, se enfoca el que ya estaba. Evita crashes por dos instancias compartiendo el mismo .minecraft."
+    },
+    {
       "id": "v1323",
       "icon": "📡",
       "tag": "Launcher",

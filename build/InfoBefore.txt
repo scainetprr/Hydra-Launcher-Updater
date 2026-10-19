@@ -1,4 +1,4 @@
-Hydra Launcher v1.3.23
+Hydra Launcher v1.3.24
 =====================
 
 Launcher original para Minecraft Java Edition
