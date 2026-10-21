@@ -2,6 +2,22 @@
   "updated": "2026-10-15",
   "posts": [
     {
+      "id": "v1326",
+      "icon": "🛡️",
+      "tag": "Launcher",
+      "date": "2026-10-19",
+      "title": "Hydra v1.3.26 — Cerrar el launcher ya no cierra el juego",
+      "body": "Cerrar Hydra mientras juegas ya no mata tu partida: el launcher pasa a segundo plano y reaparece cuando terminas de jugar. Y el proceso de Minecraft ahora corre independiente — incluso si Hydra se cierra por completo (o abres otro por error), la partida sigue viva. Abrir Hydra de nuevo solo re-enfoca el que ya estaba abierto."
+    },
+    {
+      "id": "v1325",
+      "icon": "👥",
+      "tag": "Launcher",
+      "date": "2026-10-19",
+      "title": "Hydra v1.3.25 — Varias instancias con cuentas distintas",
+      "body": "Ahora puedes abrir Minecraft con una segunda cuenta mientras la primera sigue en el juego: cada instancia usa su propio usuario. Si intentas lanzar con la misma cuenta que ya está jugando, Hydra muestra el aviso \"Ya hay una instancia en curso\" y no arranca otra. Cambia de cuenta en Cuentas y lanza la segunda cuando quieras."
+    },
+    {
       "id": "v1324",
       "icon": "🔒",
       "tag": "Launcher",
