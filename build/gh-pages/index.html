@@ -597,7 +597,7 @@
     <div class="hero-content">
       <div class="hero-badge">
         <div class="dot"></div>
-        <span>Versión 1.3.26 — Disponible</span>
+        <span>Versión 1.3.27 — Disponible</span>
       </div>
       <img src="hydra-logo.png" alt="Hydra Launcher" style="width:96px;height:96px;margin:0 auto 16px;border-radius:24px;display:block;box-shadow:0 0 70px rgba(124,58,237,.55);">
       <h1>
@@ -612,7 +612,7 @@
         <button class="btn-secondary" id="heroPortable">📦 Versión Portable</button>
       </div>
       <div class="hero-stats">
-        <div class="hero-stat"><div class="val">1.3.26</div><div class="lbl">Versión Actual</div></div>
+        <div class="hero-stat"><div class="val">1.3.27</div><div class="lbl">Versión Actual</div></div>
         <div class="hero-stat"><div class="val">50+</div><div class="lbl">Versiones Soportadas</div></div>
         <div class="hero-stat"><div class="val">3</div><div class="lbl">Cargadores</div></div>
         <div class="hero-stat"><div class="val">0</div><div class="lbl">Anuncios</div></div>
@@ -1629,10 +1629,10 @@
     // Download buttons
     const REPO = 'https://github.com/scainetprr/hydra-launcher-web';
     const dl = (url) => window.open(url, '_blank');
-  document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.26.exe'));
-  document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.26.zip'));
-  document.getElementById('dlExe').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Setup-v1.3.26.exe'));
-  document.getElementById('dlZip').addEventListener('click', () => dl(REPO+'/releases/latest/download/Hydra-Launcher-Portable-v1.3.26.zip'));
+  document.getElementById('heroDownload').addEventListener('click', () => dl(REPO+'/releases/download/v1.3.27/Hydra-Launcher-Setup-v1.3.27.exe'));
+  document.getElementById('heroPortable').addEventListener('click', () => dl(REPO+'/releases/download/v1.3.27/Hydra-Launcher-1.3.27-portable.zip'));
+  document.getElementById('dlExe').addEventListener('click', () => dl(REPO+'/releases/download/v1.3.27/Hydra-Launcher-Setup-v1.3.27.exe'));
+  document.getElementById('dlZip').addEventListener('click', () => dl(REPO+'/releases/download/v1.3.27/Hydra-Launcher-1.3.27-portable.zip'));
     document.getElementById('dlSrc').addEventListener('click', () => dl(REPO));
 
     // Newsletter
