@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://scainetprr.github.io/hydra-launcher-web/sitemap.xml
