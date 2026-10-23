@@ -15,6 +15,13 @@ const __dirname = path.dirname(__filename)
 if (!(globalThis as any).__dirname) (globalThis as any).__dirname = __dirname
 if (!(globalThis as any).__filename) (globalThis as any).__filename = __filename
 
+// Modo prueba local (--hydra-test): userData propio para poder abrir esta build
+// junto al launcher instalado (el candado de instancia única usa userData).
+const isTestMode = process.argv.includes('--hydra-test')
+if (isTestMode) {
+  try { app.setPath('userData', path.join(app.getPath('appData'), 'Hydra Launcher (test)')) } catch (e) { console.error('[test-mode]', e) }
+}
+
 let win: BrowserWindow | null = null
 
 // Sesiones de Minecraft en curso (una por cuenta de usuario; se bloquea repetir la MISMA cuenta)
@@ -62,7 +69,7 @@ function createWindow() {
   console.log('[main] VITE_DEV_SERVER_URL:', process.env.VITE_DEV_SERVER_URL)
   win = new BrowserWindow({
     width: 1280, height: 780, minWidth: 1100, minHeight: 680,
-    frame: false, backgroundColor: '#07070a',
+    frame: false, backgroundColor: '#0f0f14',
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true, nodeIntegration: false,
@@ -291,10 +298,10 @@ app.whenReady().then(async () => {
   const shot = !!process.env.HYDRA_SHOT
 
   // Actualización detectada → limpieza total de archivos del launcher (conserva solo .minecraft)
-  if (!isDev && !shot) wipeLauncherFilesOnUpdate()
+  if (!isDev && !shot && !isTestMode) wipeLauncherFilesOnUpdate()
 
   // Auto-updater en producción (registrado antes de cualquier chequeo)
-  if (!isDev) {
+  if (!isDev && !isTestMode) {
     autoUpdater.on('update-available', (info) => {
       console.log('[autoUpdater] update available:', info.version)
       pendingUpdate = { available: info, downloaded: null }
@@ -325,7 +332,7 @@ app.whenReady().then(async () => {
   if (!shot) {
     try {
       sp = createMiniSplash()
-      await runStartupSplashChecks(sp, isDev)
+      await runStartupSplashChecks(sp, isDev || isTestMode)
     } catch (e) { console.error('[splash]', e) }
   }
 
@@ -345,7 +352,7 @@ app.whenReady().then(async () => {
 
   setTimeout(() => setIdlePresence(), 3500)
   // Auto-updater en producción
-  if (!isDev) {
+  if (!isDev && !isTestMode) {
     if (!startupUpdateCheck) autoUpdater.checkForUpdatesAndNotify().catch(() => {})
     // re-chequeo periodico: si el launcher quedó abierto no debe perderse una actualización
     setInterval(() => { autoUpdater.checkForUpdates().catch(() => {}) }, 30 * 60 * 1000)
@@ -431,6 +438,29 @@ function readConfigFile(): any {
   return null
 }
 
+ipcMain.handle('pick-bg-file', async () => {
+  try {
+    const opts = {
+      title: 'Elegir fondo animado',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Imagenes animadas', extensions: ['gif', 'apng', 'png', 'jpg', 'jpeg', 'webp'] },
+        { name: 'Video', extensions: ['mp4', 'webm', 'mov', 'm4v'] }
+      ]
+    }
+    const r = win && !win.isDestroyed() ? await dialog.showOpenDialog(win, opts as any) : await dialog.showOpenDialog(opts as any)
+    const src = r.filePaths?.[0]
+    if (!src || r.canceled) return { ok: false, canceled: true }
+    const sizeMB = fs.statSync(src).size / (1024 * 1024)
+    if (sizeMB > 200) return { ok: false, error: `El archivo pesa ${sizeMB.toFixed(0)}MB (máx 200MB). Elige algo más ligero.` }
+    const dir = path.join(MINECRAFT_ROOT, 'hydra-bg')
+    fs.mkdirSync(dir, { recursive: true })
+    const dest = path.join(dir, `custom-bg${path.extname(src).toLowerCase() || '.gif'}`)
+    fs.copyFileSync(src, dest)
+    return { ok: true, path: dest }
+  } catch (e: any) { return { ok: false, error: String(e?.message || e) } }
+})
+
 ipcMain.handle('get-config', () => {
   const base = { ram: { min: '1G', max: '4G' }, javaPath: '', resolution: { w: 854, h: 480 }, servers: defaultServers.map(s=>({...s})), serversVersion: SERVERS_VERSION, cleanupOldOnUpdate: true, uiZoom: 0.8, curseforgeKey: '', lastVersion: '26.2', lastLoader: 'vanilla', lastAccountUuid: '', setupDone: false }
   const cfg = readConfigFile()
@@ -450,6 +480,49 @@ ipcMain.handle('get-config', () => {
   return cfg
 })
 ipcMain.handle('save-config', (_e, c) => { fs.writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2)); setIdlePresence(c); return true })
+
+// --- UI SOUNDS: entrega el click vanilla REAL leyendo los assets locales del juego ---
+// (sin archivos empaquetados: solo lee la instalación de Minecraft del usuario)
+// sound event -> candidate assets-index keys (vanilla file paths), first found wins
+const SOUND_INDEX_KEYS: Record<string, string[]> = {
+  'ui.button.click': ['minecraft/sounds/random/click.ogg'],
+}
+const soundCache = new Map<string, { ok: boolean; data?: string }>()
+
+ipcMain.handle('sound:get', async (_e, event: string) => {
+  const key = String(event)
+  const cached = soundCache.get(key)
+  if (cached) return cached
+  try {
+    const candidates = SOUND_INDEX_KEYS[key]
+    if (!candidates) return { ok: false, error: 'evento desconocido' }
+    const assetsDir = path.join(MINECRAFT_ROOT, 'assets') // misma base que ACCOUNTS_PATH
+    const idxDir = path.join(assetsDir, 'indexes')
+    // índices ordenados del más nuevo al más viejo (mtime); maps index-key -> { hash }
+    // (formatos: claves planas antiguas o anidadas bajo { objects: {...} } en versiones nuevas)
+    const idxFiles = fs.readdirSync(idxDir).filter(f => f.endsWith('.json')).map(f => {
+      const p = path.join(idxDir, f)
+      return { p, mtime: fs.statSync(p).mtimeMs }
+    }).sort((a, b) => b.mtime - a.mtime)
+    for (const { p } of idxFiles) {
+      let index: any
+      try { index = JSON.parse(fs.readFileSync(p, 'utf-8')) } catch { continue } // index corrupto → siguiente
+      const map = index?.objects && typeof index.objects === 'object' ? index.objects : index
+      for (const k of candidates) {
+        const hash = map?.[k]?.hash
+        if (typeof hash !== 'string' || hash.length < 3) continue
+        const objPath = path.join(assetsDir, 'objects', hash.slice(0, 2), hash)
+        if (!fs.existsSync(objPath)) continue
+        const res = { ok: true, data: 'data:audio/ogg;base64,' + fs.readFileSync(objPath).toString('base64') }
+        soundCache.set(key, res) // cache: una sola lectura por ejecución
+        return res
+      }
+    }
+    return { ok: false, error: 'sonido no encontrado en assets' }
+  } catch (e: any) {
+    return { ok: false, error: String(e?.message || e) } // nunca lanza al renderer
+  }
+})
 
 // Presencia en Discord mientras el launcher está abierto (sin partida en curso)
 let lastIdleAt = 0
@@ -1121,7 +1194,13 @@ ipcMain.handle('launch', async (_e, opts:any) => {
       send(`  auth premium ${name} ${uuid} (token ${token.slice(0,6)}...${token.slice(-4)})`)
     } else {
       const { v3 } = await import('uuid')
-      const name = opts.account?.name || 'Player'
+      // valida el nombre offline: sin fallback silencioso a "Player" (en PCs con
+      // cuentas corruptas/legacy se lanzaba con otro nombre y el usuario no sabia por que)
+      const rawName = String(opts.account?.name ?? '').trim()
+      if (!/^[A-Za-z0-9_]{3,16}$/.test(rawName)) {
+        throw new Error(`Cuenta offline sin nombre valido ("${rawName || '(vacio)'}"). Anade una cuenta valida en Cuentas (3-16 caracteres: letras, numeros y _) antes de jugar.`)
+      }
+      const name = rawName
       // usa UUID guardado si existe, si no genera v3 determinÃ­stico (igual que Accounts.tsx)
       const deterministic = v3(name, v3.DNS).replace(/-/g,'')
       const cleanUuid = (opts.account?.uuid || deterministic).replace(/-/g,'')

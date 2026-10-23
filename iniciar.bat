@@ -9,5 +9,5 @@ if errorlevel 1 (
   exit /b
 )
 echo === Lanzando Hydra Launcher ===
-call npx electron .
+call npx electron . --disable-gpu
 pause

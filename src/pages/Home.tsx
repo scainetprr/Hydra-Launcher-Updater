@@ -131,7 +131,7 @@ export default function Home() {
               Minecraft,<br/><span className="text-gradient">sin fricción.</span>
             </h1>
             <p className="text-white/65 mt-3 max-w-[540px] text-sm leading-relaxed">
-              Cualquier versión directo de Mojang, mods de <b className="text-violet-300">Modrinth</b> y <b className="text-cyan-300">CurseForge</b> en un clic y conexión directa a <b>HyperHard</b>. Sin saltos, sin configuración manual.
+              Cualquier versión directo de Mojang, mods de <b className="text-violet-300">Modrinth</b> y <b className="text-cyan-300">CurseForge</b> en un clic y conexión opcional a <b>HyperHard</b>. Sin saltos, sin configuración manual.
             </p>
 
             <div className="flex flex-wrap gap-2 mt-5">
@@ -142,12 +142,12 @@ export default function Home() {
 
             <div className="flex flex-wrap items-center gap-3 mt-6">
               <div className="relative flex">
-                <button onClick={()=>launchGame({ ip: principal.ip, port: principal.port || 25565 })} disabled={launching}
+                <button onClick={()=>launchGame()} disabled={launching}
                   className="h-[58px] pl-5 pr-4 rounded-l-2xl text-left text-white shadow-[0_10px_40px_rgba(34,197,94,0.35)] hover:scale-[1.015] active:scale-[0.985] transition disabled:opacity-60 flex items-center gap-4"
                   style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
                   <span className="text-xl">{launching ? '⏳' : '▶'}</span>
                   <span>
-                    <div className="font-black tracking-wide leading-none">{launching ? (pct!==null ? `DESCARGANDO ${pct}%` : 'LANZANDO...') : 'JUGAR EN HYPERHARD'}</div>
+                    <div className="font-black tracking-wide leading-none">{launching ? (pct!==null ? `DESCARGANDO ${pct}%` : 'LANZANDO...') : 'JUGAR'}</div>
                     <div className="text-[11px] text-white/80 leading-none mt-1">{selectedVersion} • {loader} • {acct?.name}</div>
                   </span>
                 </button>
@@ -156,6 +156,15 @@ export default function Home() {
                   className="h-[58px] px-4 rounded-r-2xl text-white text-lg font-black border-l border-black/20 hover:brightness-110 active:scale-[0.97] transition disabled:opacity-60"
                   style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)' }}>
                   {vm ? '▴' : '▾'}
+                </button>
+                <button onClick={()=>launchGame({ ip: principal.ip, port: principal.port || 25565 })} disabled={launching}
+                  className="h-[58px] px-5 rounded-r-2xl text-white font-black border border-white/20 hover:bg-white/[0.1] active:scale-[0.985] transition disabled:opacity-60 flex items-center gap-3"
+                  style={{ background: 'linear-gradient(135deg,#3b82f6,#2563eb)' }}>
+                  <span className="text-xl">🌐</span>
+                  <span>
+                    <div className="font-black tracking-wide leading-none">{launching ? 'CONECTANDO...' : 'JUGAR EN HYPERHARD'}</div>
+                    <div className="text-[11px] text-white/80 leading-none mt-1">{principal.ip}:{principal.port || 25565}</div>
+                  </span>
                 </button>
               </div>
               <span className="text-[11px] text-white/45 leading-tight">
@@ -286,7 +295,7 @@ export default function Home() {
           <ol className="text-sm text-white/70 mt-3 space-y-2 list-decimal ml-5">
             <li><b>Cuentas</b> → Offline (instant) o Microsoft (premium).</li>
             <li><b>Versiones</b> → elige <span className="text-white">{latest?.release || '1.21'} + Fabric</span> (recomendado Hydra).</li>
-            <li><b>JUGAR EN HYPERHARD</b> → descarga y entra directo al servidor.</li>
+            <li><b>JUGAR</b> → abre Minecraft. <b>JUGAR EN HYPERHARD</b> → entra directo al servidor (opcional).</li>
           </ol>
           <div className="text-[11px] text-white/30 mt-3">%APPDATA%/.minecraft • worlds y resourcepacks compartidos con vanilla</div>
         </div>

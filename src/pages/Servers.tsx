@@ -7,7 +7,15 @@ export default function Servers(){
   const config = useStore(s=>s.config)
   const set = useStore(s=>s.set)
   const launching = useStore(s=>s.launching)
+  const activeAccount = useStore(s=>s.activeAccount)
+  const accounts = useStore(s=>s.accounts)
+  const acct = activeAccount || accounts[0]
+  // Solo el dueño de Hydra (scainetprr, cuenta Microsoft) puede editar los servidores oficiales
+  const OWNER_UUID = 'e38d83800892458fa8947d281852215a'
+  const isOwner = !!acct && acct.type==='microsoft' && ((acct.uuid||'')===OWNER_UUID || (acct.name||'').toLowerCase()==='scainetprr')
   const [edit,setEdit]=useState(false)
+  useEffect(()=>{ if(!isOwner) setEdit(false) },[isOwner])
+  const canEdit = edit && isOwner
   const [pings,setPings]=useState<Record<string,any>>({})
   const [copied,setCopied]=useState<string|''>('')
   const [tab,setTab]=useState<'oficiales'|'comunidad'>('oficiales')
@@ -33,9 +41,9 @@ export default function Servers(){
     window.api?.getCommunityServers?.().then((r:any)=> setCommunity(r?.servers||[])).catch(()=>setCommunity([]))
   },[])
 
-  const update = (id:string, patch:any)=> set({config:{...config, servers: config.servers.map(s=> s.id===id?{...s,...patch}:s)}})
-  const add = ()=> set({config:{...config, servers:[...config.servers,{id:'srv'+Date.now(), name:'Nuevo Servidor', ip:'play.ejemplo.com', port:25565, type:'custom', desc:'', banner:'🎮'}]}})
-  const remove = (id:string)=> set({config:{...config, servers: config.servers.filter(s=>s.id!==id)}})
+  const update = (id:string, patch:any)=>{ if(!isOwner) return; set({config:{...config, servers: config.servers.map(s=> s.id===id?{...s,...patch}:s)}}) }
+  const add = ()=>{ if(!isOwner) return; set({config:{...config, servers:[...config.servers,{id:'srv'+Date.now(), name:'Nuevo Servidor', ip:'play.ejemplo.com', port:25565, type:'custom', desc:'', banner:'🎮'}]}}) }
+  const remove = (id:string)=>{ if(!isOwner) return; set({config:{...config, servers: config.servers.filter(s=>s.id!==id)}}) }
   const boost = (id:string)=>{
     const votes = { ...(config.votes||{}) }
     votes[id] = Date.now()
@@ -53,8 +61,8 @@ export default function Servers(){
         </div>
         {tab==='oficiales' && <>
           <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/20">{config.servers.length} configurados</span>
-          <button onClick={()=>setEdit(!edit)} className="ml-auto glass px-3 py-1.5 rounded-xl text-sm font-semibold">{edit?'Listo':'Editar'}</button>
-          <button onClick={add} className="bg-white text-black px-3 py-1.5 rounded-xl text-sm font-bold">+ Añadir</button>
+          {isOwner && <button onClick={()=>setEdit(!edit)} className="ml-auto glass px-3 py-1.5 rounded-xl text-sm font-semibold">{edit?'Listo':'Editar'}</button>}
+          {isOwner && <button onClick={add} className="bg-white text-black px-3 py-1.5 rounded-xl text-sm font-bold">+ Añadir</button>}
         </>}
       </div>
 
@@ -69,10 +77,14 @@ export default function Servers(){
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl neon-gradient grid place-items-center text-xl">{s.banner}</div>
                 <div className="flex-1 min-w-0">
-                  {!edit ? <div className="font-bold leading-none truncate">{s.name}</div> : <input value={s.name} onChange={e=>update(s.id,{name:e.target.value})} className="bg-[#14141c] border border-white/10 rounded px-2 py-1 w-full"/>}
+                  {!canEdit ? <div className="font-bold leading-none truncate">{s.name}</div> : <input value={s.name} onChange={e=>update(s.id,{name:e.target.value})} className="bg-[#14141c] border border-white/10 rounded px-2 py-1 w-full"/>}
                   <div className="text-xs text-white/60 truncate">{s.ip}:{s.port} • {s.type}</div>
                 </div>
                 <span className={`text-[11px] px-2 py-1 rounded-full border font-bold ${p?.online ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30':'bg-white/10 text-white/50 border-white/10'}`}>{p?.online ? '● Online':'○ Offline'}</span>
+                {canEdit && (
+                  <button onClick={()=>{ if(window.confirm(`¿Eliminar el servidor "${s.name}"?`)) remove(s.id) }}
+                    title="Eliminar servidor" className="shrink-0 text-white/40 hover:text-red-400 rounded-lg border border-white/10 px-2 py-1 text-xs">✕</button>
+                )}
               </div>
               {p?.online && (
                 <div className="flex gap-3 mt-3 text-[11px] text-white/50">
@@ -81,7 +93,7 @@ export default function Servers(){
                   {p.version && <span className="truncate">⛏ {p.version}</span>}
                 </div>
               )}
-              {!edit ? <div className="text-sm text-white/70 mt-3 min-h-[20px]">{s.desc}</div> : (
+              {!canEdit ? <div className="text-sm text-white/70 mt-3 min-h-[20px]">{s.desc}</div> : (
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   <input value={s.ip} onChange={e=>update(s.id,{ip:e.target.value})} placeholder="IP" className="bg-[#14141c] border border-white/10 rounded-lg px-2 py-1.5 text-sm"/>
                   <input value={String(s.port)} onChange={e=>update(s.id,{port:Number(e.target.value)||25565})} className="bg-[#14141c] border border-white/10 rounded-lg px-2 py-1.5 text-sm"/>
@@ -96,7 +108,7 @@ export default function Servers(){
                 <button disabled={launching} onClick={()=>launchGame({ip:s.ip, port:s.port})}
                   className="flex-1 neon-gradient text-white font-bold py-2 rounded-xl text-sm disabled:opacity-60">{launching?'Lanzando...':'Entrar →'}</button>
               </div>
-              {edit && (s.id==='hyperhard' || s.id==='hydra-eventos') && <div className="text-[10px] text-white/30 mt-2">Servidor oficial — la IP se puede editar pero no se recomienda.</div>}
+              {canEdit && (s.id==='hyperhard' || s.id==='hydra-eventos') && <div className="text-[10px] text-white/30 mt-2">Servidor oficial — la IP se puede editar pero no se recomienda.</div>}
             </div>
           </div>
         )})}

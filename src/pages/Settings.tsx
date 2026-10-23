@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useStore } from '../store/launcherStore'
+import { setUiSoundPrefs } from '../sound'
 
 export default function Settings(){
   const config = useStore(s=>s.config)
@@ -57,6 +58,11 @@ export default function Settings(){
   const cleanNow = async () => {
     const res = await window.api?.cleanupOldInstallers?.()
     setCleanupResult(res?.removed ? `${res.removed} instalador(es) antiguo(s) eliminados` : 'Nada que limpiar')
+  }
+  const pickBg = async () => {
+    const r = await window.api?.pickBgFile?.()
+    if (r?.ok) patchConfig({ animatedBg: 'custom', animatedBgFile: r.path })
+    else if (r?.error) window.alert(r.error)
   }
 
   return (
@@ -119,6 +125,50 @@ export default function Settings(){
           </div>
         </div>
         <div className="text-[11px] text-white/35">Se aplica al instante. Los temas de temporada cambian los acentos del launcher.</div>
+        <div className="flex items-center gap-3 pt-1">
+          <label className="text-xs text-white/50 w-28">Fondo animado</label>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id:'off', name:'Apagado', colors:['#27272a','#3f3f46'] },
+              { id:'aurora', name:'Aurora', colors:['#4c1d95','#0e7490','#9d174d'] },
+              { id:'magma', name:'Magma', colors:['#dc2626','#ea580c','#7f1d1d'] },
+              { id:'oceano', name:'Océano', colors:['#0891b2','#2563eb','#0d9488'] },
+              { id:'nebula', name:'Nebulosa', colors:['#7c3aed','#3b82f6','#db2777'] },
+            ].map(b=>(
+              <button key={b.id} onClick={()=>patchConfig({animatedBg:b.id})}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${(config.animatedBg||'off')===b.id?'bg-white text-black border-white':'bg-white/[0.05] border-white/10 text-white/75 hover:bg-white/10'}`}>
+                <span className="flex">{b.colors.map(c=><span key={c} className="w-3 h-3 rounded-full border border-black/20" style={{background:c}}/>)}</span>
+                {b.name}
+              </button>
+            ))}
+            <button onClick={pickBg}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${config.animatedBg==='custom'?'bg-white text-black border-white':'bg-white/[0.05] border-white/10 text-white/75 hover:bg-white/10'}`}>
+              {config.animatedBg==='custom' ? 'Personalizado ✓' : 'Personalizado…'}
+            </button>
+          </div>
+        </div>
+        <div className="text-[11px] text-white/35">El fondo animado se ve al instante en todo el launcher. "Personalizado" acepta un GIF, imagen o video (MP4/WebM) de tu PC — el archivo se copia a .minecraft\hydra-bg y puedes quitarlo volviendo a elegir otro fondo.</div>
+        <div className="flex items-center gap-3 pt-1">
+          <label className="text-xs text-white/50 w-28">Sonidos de la interfaz</label>
+          <label className="flex items-center gap-2 text-xs text-white/75 cursor-pointer">
+            <input type="checkbox" checked={config.uiSounds !== false} onChange={e=>{
+              patchConfig({ uiSounds: e.target.checked })
+              setUiSoundPrefs(e.target.checked, config?.uiSoundsVolume ?? 0.35)
+            }} className="accent-violet-600"/>
+            Activos
+          </label>
+          <div className="flex items-center gap-2">
+            <input type="range" min={0} max={100} step={5}
+              value={Math.round((config?.uiSoundsVolume ?? 0.35)*100)}
+              onChange={e=>{
+                const pct = Number(e.target.value)
+                patchConfig({ uiSoundsVolume: pct/100 })
+                setUiSoundPrefs(config?.uiSounds !== false, pct/100)
+              }} className="accent-violet-600 w-36"/>
+            <span className="text-[11px] text-white/40 w-8">{Math.round((config?.uiSoundsVolume ?? 0.35)*100)}%</span>
+          </div>
+        </div>
+        <div className="text-[11px] text-white/35">Clic estilo Minecraft en los botones — suena el sonido real de tu propio juego (se lee de %APPDATA%\.minecraft\assets; si no hay assets instalados, un clic suave de respaldo).</div>
       </div>
 
       {/* PERFILES DE LANZAMIENTO */}

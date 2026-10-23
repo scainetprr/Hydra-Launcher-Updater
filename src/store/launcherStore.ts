@@ -3,7 +3,7 @@ import { create } from 'zustand'
 type Account = { name: string; uuid: string; type: 'offline'|'microsoft'; access_token?: string; msRefresh?: string }
 type Server = { id:string; name:string; ip:string; port:number; type:string; desc:string; banner:string }
 export type Profile = { id:string; name:string; icon:string; version:string; loader:'vanilla'|'fabric'|'forge'; ram:{min:string;max:string}; serverIp?:string }
-type Config = { ram:{min:string;max:string}; javaPath:string; resolution:{w:number;h:number}; servers:Server[]; lastVersion?:string; lastLoader?:'vanilla'|'fabric'|'forge'; lastAccountUuid?:string; cleanupOldOnUpdate?:boolean; uiZoom?:number; curseforgeKey?:string; serversVersion?:number; theme?:string; profiles?:Profile[]; votes?:Record<string,number>; discordClientId?:string }
+type Config = { ram:{min:string;max:string}; javaPath:string; resolution:{w:number;h:number}; servers:Server[]; lastVersion?:string; lastLoader?:'vanilla'|'fabric'|'forge'; lastAccountUuid?:string; cleanupOldOnUpdate?:boolean; uiZoom?:number; curseforgeKey?:string; serversVersion?:number; theme?:string; profiles?:Profile[]; votes?:Record<string,number>; discordClientId?:string; animatedBg?:string; animatedBgFile?:string; uiSounds?:boolean; uiSoundsVolume?:number }
 
 // Los logs llegan en ráfagas (miles de líneas durante el lanzamiento): se agrupan en
 // tandas de 150ms para que React no se congele y la ventana no quede "No responde".
@@ -18,9 +18,9 @@ export const useStore = create<{
   set:(p:Partial<any>)=>void; addLog:(s:string)=>void;
 }>((set)=>({
   versions: null, latest: null, selectedVersion: '1.21.4', loader:'vanilla',
-  accounts: [{ name:'Player', uuid:'offline-player', type:'offline'}],
+  accounts: [],
   activeAccount: null,
-  config: { ram:{min:'1G',max:'4G'}, javaPath:'', resolution:{w:854,h:480}, servers:[], theme:'hydra', profiles:[], votes:{} },
+  config: { ram:{min:'1G',max:'4G'}, javaPath:'', resolution:{w:854,h:480}, servers:[], theme:'hydra', profiles:[], votes:{}, animatedBg:'off', uiSounds: true, uiSoundsVolume: 0.35 },
   logs: [], progress: null, launching:false,
   installedVersions: [],
   set: (p)=> set(p),

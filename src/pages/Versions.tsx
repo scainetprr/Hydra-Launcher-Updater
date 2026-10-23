@@ -45,22 +45,31 @@ export default function Versions(){
 
   const isInstalledId = (id:string)=> installed.includes(id) || installed.some(x=>x.includes(id) && id.length>3) || (installedVersions||[]).some((x:any)=>x.id===id)
 
-  const badge = (id:string, loaderHint?:string|null)=>{
-    // el loader real detectado del json manda sobre inferencias por nombre
-    if (loaderHint==='fabric') return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
-    if (loaderHint==='neoforge') return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
-    if (loaderHint==='forge') return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
-    if (id.toLowerCase().startsWith('fabric-loader')) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
-    if (id.toLowerCase().startsWith('neoforge')) return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
-    if (id.toLowerCase().startsWith('forge')) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
-    if (id.toLowerCase().includes('fabric')) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
-    if (id.toLowerCase().includes('neoforge')) return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
-    if (id.toLowerCase().includes('forge')) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
+  // detecta el loader de una FILA (hint del json o patrones del nombre); sin cruzar con carpetas instaladas
+  const loaderOf = (id:string, hint?:string|null): 'fabric'|'forge'|'neoforge'|'vanilla'=>{
+    if (hint==='fabric'||hint==='neoforge'||hint==='forge') return hint as any
     const lid = id.toLowerCase()
-    if (installed.some(x=>{const n=x.toLowerCase(); return n.startsWith('fabric-loader') && n.endsWith('-'+lid)})) return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
-    if (installed.some(x=>{const n=x.toLowerCase(); return n.includes('forge') && n.includes(lid)})) return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
-    if (loader==='fabric') return {label:'FABRIC',cls:'bg-violet-500/20 text-violet-300 border border-violet-500/30',icon:'⚡'}
-    if (loader==='forge') return {label:'FORGE',cls:'bg-amber-500/20 text-amber-300 border border-amber-500/30',icon:'🔨'}
+    if (lid.includes('fabric')) return 'fabric'
+    if (lid.includes('neoforge')) return 'neoforge'
+    if (lid.includes('forge')) return 'forge'
+    return 'vanilla'
+  }
+
+  // ¿existe en disco una CARPETA de loader (fabric/forge/neoforge) para esta versión MC?
+  const hasInstalledLoaderVariant = (mcId:string): 'fabric'|'forge'|'neoforge'|null=>{
+    const mid = mcId.toLowerCase()
+    if (installed.some(x=>{const n=x.toLowerCase(); return n.startsWith('fabric-loader') && n.endsWith('-'+mid)})) return 'fabric'
+    if (installed.some(x=>{const n=x.toLowerCase(); return n.startsWith('neoforge') && n.endsWith('-'+mid)})) return 'neoforge'
+    if (installed.some(x=>{const n=x.toLowerCase(); return n.startsWith('forge') && n.endsWith('-'+mid)})) return 'forge'
+    return null
+  }
+
+  const badge = (id:string, loaderHint?:string|null)=>{
+    // el loader real detectado del json manda sobre inferencias por nombre; sin fallback al loader seleccionado
+    const det = loaderOf(id, loaderHint)
+    if (det==='fabric') return {label:'FABRIC',cls:'bg-violet-600 text-white',icon:'⚡'}
+    if (det==='neoforge') return {label:'NEOFORGE',cls:'bg-orange-600 text-white',icon:'🔥'}
+    if (det==='forge') return {label:'FORGE',cls:'bg-amber-600 text-white',icon:'🔨'}
     if (installed.includes(id)) return {label:'VANILLA',cls:'bg-white/15 text-white',icon:'⬢'}
     return {label:'VANILLA',cls:'bg-white/10 text-white/70 border border-white/10',icon:'⬢'}
   }
@@ -85,6 +94,14 @@ export default function Versions(){
         return { id, type: m?.type || fv?.type || 'release', releaseTime: m?.releaseTime || '', url: m?.url || (fv?.valid? 'instalada en disco' : ''), modpack: fv?.modpack || null, loader: fv?.loader || null }
       }).sort((a:any,b:any)=> (b.releaseTime||'').localeCompare(a.releaseTime||''))
         .filter(match)
+        // filtro estricto por loader de la fila (neoforge cuenta como forge)
+        .filter((e:any)=>{
+          const det = loaderOf(e.id, e.loader)
+          if (loader==='vanilla') return det==='vanilla'
+          if (loader==='fabric') return det==='fabric'
+          if (loader==='forge') return det==='forge'||det==='neoforge'
+          return true
+        })
     }
     return versions.filter((v:any)=>{
       if(panel==='recent'){
@@ -92,9 +109,14 @@ export default function Versions(){
       } else if (panel==='old'){
         if(!['old_beta','old_alpha'].includes(v.type)) return false
       } else if (v.type!==panel) return false
+      // filtro por loader: si hay carpeta de loader instalada para esta MC — vanilla la excluye; fabric excluye forge/neoforge instalados (vanilla es inyectable); forge excluye fabric instalado
+      const inst = hasInstalledLoaderVariant(v.id)
+      if (loader==='vanilla' && inst) return false
+      if (loader==='fabric' && (inst==='forge'||inst==='neoforge')) return false
+      if (loader==='forge' && inst==='fabric') return false
       return match(v)
     }).slice(0, panel==='recent' ? 40 : 180)
-  },[versions,panel,q,installedVersions,installed])
+  },[versions,panel,q,installedVersions,installed,loader])
 
   const installedCount = new Set([...(installedVersions||[]).map((x:any)=>x.id), ...installed]).size
 

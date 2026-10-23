@@ -74,3 +74,55 @@
   box-shadow: 0 0 6px var(--star-color), 0 0 12px var(--star-color);
   will-change: transform, opacity;
 }
+
+/* FONDOS ANIMADOS (Ajustes → Interfaz → Fondo animado) */
+.animated-bg { position: absolute; inset: 0; pointer-events: none; }
+.animated-bg::after { content: ''; position: absolute; inset: 0; background: rgba(4,4,8,.5); }
+
+@keyframes abgShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.abg-aurora {
+  background: linear-gradient(-45deg, #0b1026, #4c1d95, #0e7490, #9d174d, #0b1026);
+  background-size: 400% 400%;
+  animation: abgShift 26s ease-in-out infinite;
+}
+
+@keyframes abgDrift3 {
+  0%, 100% { background-position: 0% 50%, 100% 60%, 50% 40%; }
+  50% { background-position: 100% 40%, 0% 50%, 50% 70%; }
+}
+.abg-magma {
+  background:
+    radial-gradient(55% 50% at 20% 80%, rgba(220,38,38,.5), transparent 65%),
+    radial-gradient(50% 45% at 80% 25%, rgba(249,115,22,.42), transparent 62%),
+    radial-gradient(45% 45% at 55% 55%, rgba(127,29,29,.55), transparent 65%),
+    #140507;
+  background-size: 220% 220%, 200% 200%, 180% 180%, 100% 100%;
+  animation: abgDrift3 18s ease-in-out infinite;
+}
+.abg-oceano {
+  background:
+    radial-gradient(55% 50% at 25% 30%, rgba(8,145,178,.45), transparent 65%),
+    radial-gradient(50% 50% at 75% 70%, rgba(37,99,235,.4), transparent 62%),
+    radial-gradient(40% 40% at 50% 100%, rgba(13,148,136,.35), transparent 60%),
+    #050b16;
+  background-size: 220% 220%, 200% 200%, 180% 180%, 100% 100%;
+  animation: abgDrift3 22s ease-in-out infinite reverse;
+}
+.abg-nebula {
+  background:
+    radial-gradient(50% 45% at 70% 20%, rgba(124,58,237,.4), transparent 62%),
+    radial-gradient(45% 45% at 25% 70%, rgba(59,130,246,.35), transparent 60%),
+    radial-gradient(35% 35% at 80% 80%, rgba(219,39,119,.28), transparent 60%),
+    #070714;
+  background-size: 200% 200%, 220% 220%, 190% 190%, 100% 100%;
+  animation: abgDrift3 34s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) { .animated-bg { animation: none; } }
+
+/* Sidebar glassmorphism */
+.sidebar-glass {
+  background: rgba(20, 20, 30, 0.85);
+  border-right: 1px solid rgba(255,255,255,.09);
+  box-shadow: inset -1px 0 0 rgba(255,255,255,.06), 10px 0 40px rgba(0,0,0,.4);
+}

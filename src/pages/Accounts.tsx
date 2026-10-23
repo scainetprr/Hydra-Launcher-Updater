@@ -40,6 +40,7 @@ export default function Accounts(){
   const activeAccount = useStore(s=>s.activeAccount)
   const set = useStore(s=>s.set)
   const [name,setName]=useState('')
+  const [nameErr,setNameErr]=useState('')
   const acct: any = activeAccount || accounts[0]
   const [skin,setSkin]=useState<{url:string;model:'classic'|'slim'}|null>(null)
   const [skinErr,setSkinErr]=useState('')
@@ -77,8 +78,11 @@ export default function Accounts(){
   }
 
   const addOffline = ()=>{
-    if(!name.trim()) return
     const clean = name.trim()
+    // reglas de Minecraft: 3-16 caracteres, letras/números/_ — sin esto el juego
+    // arrancaba con nombre generico porque el main rechazaba el invalido
+    if(!/^[A-Za-z0-9_]{3,16}$/.test(clean)){ setNameErr('Usa 3-16 caracteres: letras, números y _'); return }
+    setNameErr('')
     const uuid = uuidv3(clean, uuidv3.DNS).replace(/-/g,'')
     const acc = { name: clean, uuid, type:'offline' as const }
     set({accounts:[...accounts, acc], activeAccount: acc})
@@ -121,10 +125,11 @@ export default function Accounts(){
       )}
 
       <div className="glass rounded-2xl p-5 card-hover flex gap-3">
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre offline (sin premium)" className="flex-1 bg-[#14141c] border border-white/10 rounded-xl px-4 py-3 outline-none"/>
+        <input value={name} onChange={e=>{setName(e.target.value); setNameErr('')}} placeholder="Nombre offline (sin premium)" className="flex-1 bg-[#14141c] border border-white/10 rounded-xl px-4 py-3 outline-none"/>
         <button onClick={addOffline} className="bg-white text-black font-bold px-5 rounded-xl">Añadir offline</button>
         <button onClick={loginMs} className="neon-gradient text-white font-bold px-5 rounded-xl">Microsoft →</button>
       </div>
+      {nameErr && <div className="text-xs font-semibold text-red-300 -mt-1">{nameErr}</div>}
 
       <div className="grid gap-3">
         {accounts.map(a=>(
@@ -134,7 +139,7 @@ export default function Accounts(){
               <div className="font-bold">{a.name} {activeAccount?.uuid===a.uuid && <span className="text-xs bg-violet-600 text-white px-2 py-0.5 rounded-full ml-2">ACTIVA</span>}</div>
               <div className="text-xs text-white/50">{a.type} • {a.uuid.slice(0,12)}{a.type==='microsoft' && !a.access_token && <span className="text-red-400 font-bold"> • SESIÓN ROTA — bórrala y entra de nuevo</span>}{a.type==='microsoft' && a.access_token && <span className="text-emerald-400"> • token ok</span>}</div>
             </div>
-            <button onClick={(e)=>{e.stopPropagation(); set({accounts: accounts.filter(x=>x.uuid!==a.uuid)})}} className="ml-auto text-xs px-3 py-1.5 rounded-full bg-white/10 border border-white/10">Borrar</button>
+            <button onClick={(e)=>{e.stopPropagation(); const rest = accounts.filter(x=>x.uuid!==a.uuid); set({accounts:rest, activeAccount: activeAccount?.uuid===a.uuid ? (rest[0]||null) : activeAccount})}} className="ml-auto text-xs px-3 py-1.5 rounded-full bg-white/10 border border-white/10">Borrar</button>
           </div>
         ))}
       </div>

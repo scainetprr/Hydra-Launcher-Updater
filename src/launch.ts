@@ -5,7 +5,12 @@ export type QuickServer = { ip: string; port?: number } | null
 export async function launchGame(server: QuickServer = null): Promise<boolean> {
   const { selectedVersion, loader, activeAccount, accounts, config, set, addLog } = useStore.getState()
   const acct = activeAccount || accounts[0]
-  if (!acct) { addLog('No hay cuenta seleccionada'); return false }
+  if (!acct) {
+    const msg = 'No hay cuenta seleccionada. Crea una cuenta offline o Microsoft en Cuentas antes de jugar.'
+    addLog(msg)
+    alert(msg)
+    return false
+  }
   set({ launching: true })
   addLog(`Lanzando ${selectedVersion} (${loader}) como ${acct.name}${server ? ` -> ${server.ip}` : ''}...`)
   try {

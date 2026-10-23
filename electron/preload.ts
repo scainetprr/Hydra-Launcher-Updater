@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('api', {
   cleanupOldInstallers: () => ipcRenderer.invoke('cleanup-old-installers'),
   // interfaz
   setZoom: (z:number) => ipcRenderer.invoke('set-zoom', z),
+  pickBgFile: () => ipcRenderer.invoke('pick-bg-file'),
+  getSound: (event: string) => ipcRenderer.invoke('sound:get', event),
   // mods / modpacks (Modrinth + CurseForge)
   browseContent: (opts:any) => ipcRenderer.invoke('browse-content', opts),
   getContentDetail: (opts:any) => ipcRenderer.invoke('get-content-detail', opts),
