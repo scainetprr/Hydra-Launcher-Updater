@@ -99,6 +99,7 @@ export default function Versions(){
           const det = loaderOf(e.id, e.loader)
           if (loader==='vanilla') return det==='vanilla'
           if (loader==='fabric') return det==='fabric'
+          if (loader==='neoforge') return det==='neoforge'
           if (loader==='forge') return det==='forge'||det==='neoforge'
           return true
         })
@@ -109,11 +110,17 @@ export default function Versions(){
       } else if (panel==='old'){
         if(!['old_beta','old_alpha'].includes(v.type)) return false
       } else if (v.type!==panel) return false
-      // filtro por loader: si hay carpeta de loader instalada para esta MC — vanilla la excluye; fabric excluye forge/neoforge instalados (vanilla es inyectable); forge excluye fabric instalado
+      // filtro por loader: detectar el loader de la versión desde su JSON o nombre
+      const det = loaderOf(v.id, v.loader)
+      if (loader==='vanilla' && det!=='vanilla') return false
+      if (loader==='fabric' && det!=='fabric') return false
+      if (loader==='neoforge' && det!=='neoforge') return false
+      if (loader==='forge' && det!=='forge' && det!=='neoforge') return false
+      // filtro de variantes instaladas en disco
       const inst = hasInstalledLoaderVariant(v.id)
       if (loader==='vanilla' && inst) return false
       if (loader==='fabric' && (inst==='forge'||inst==='neoforge')) return false
-      if (loader==='forge' && inst==='fabric') return false
+      if ((loader==='forge'||loader==='neoforge') && inst==='fabric') return false
       return match(v)
     }).slice(0, panel==='recent' ? 40 : 180)
   },[versions,panel,q,installedVersions,installed,loader])
@@ -153,6 +160,7 @@ export default function Versions(){
             <option value="vanilla">Vanilla</option>
             <option value="fabric">Fabric (1-click)</option>
             <option value="forge">Forge (1-click)</option>
+            <option value="neoforge">NeoForge (1-click)</option>
           </select>
         </div>
       </aside>
@@ -207,7 +215,7 @@ export default function Versions(){
           )})}
         </div>
 
-        <div className="glass rounded-xl p-3 text-xs text-white/50">Tip Hydra: todas las versiones se descargan directo de Mojang sin modificar. Fabric/Forge se inyecta automáticamente al lanzar.</div>
+        <div className="glass rounded-xl p-3 text-xs text-white/50">Tip Hydra: todas las versiones se descargan directo de Mojang sin modificar. Fabric/Forge/NeoForge se inyecta automáticamente al lanzar.</div>
       </div>
     </div>
   )

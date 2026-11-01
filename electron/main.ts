@@ -454,7 +454,8 @@ ipcMain.handle('pick-bg-file', async () => {
     const sizeMB = fs.statSync(src).size / (1024 * 1024)
     if (sizeMB > 200) return { ok: false, error: `El archivo pesa ${sizeMB.toFixed(0)}MB (máx 200MB). Elige algo más ligero.` }
     const dir = path.join(MINECRAFT_ROOT, 'hydra-bg')
-    fs.mkdirSync(dir, { recursive: true })
+    try { fs.mkdirSync(MINECRAFT_ROOT, { recursive: true }) } catch {}
+    try { fs.mkdirSync(dir, { recursive: true }) } catch {}
     const dest = path.join(dir, `custom-bg${path.extname(src).toLowerCase() || '.gif'}`)
     fs.copyFileSync(src, dest)
     return { ok: true, path: dest }
@@ -661,6 +662,99 @@ async function installForge(mcVersion: string, send: (m:string)=>void): Promise<
   } catch (e:any) {
     throw new Error(`Forge no disponible para ${mcVersion}: ${e.message}`)
   }
+}
+
+// --- NEOFORGE INSTALLER (oficial neoforged.net) ---
+// Mapa MC -> prefijo de versión NeoForge: 1.21.1 -> "21.1." | 1.21.10 -> "21.10." | 26.3 -> "26.3."
+function neoforgeVersionPrefix(mcVersion: string): string {
+  const m = /^1\.(\d+)\.(\d+)/.exec(mcVersion)
+  if (m) return `${m[1]}.${m[2]}.`
+  return `${mcVersion}.`
+}
+// compara versiones por segmentos numéricos (21.1.9 < 21.1.265 < 21.1.1000)
+function cmpNumericVersion(a: string, b: string): number {
+  const pa = a.split('.').map(n => parseInt(n, 10) || 0)
+  const pb = b.split('.').map(n => parseInt(n, 10) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0)
+    if (d) return d
+  }
+  return 0
+}
+
+// Instala NeoForge con el INSTALADOR OFICIAL (neoforged): descarga neoforge-<v>-installer.jar
+// y lo ejecuta con --installClient <root> (validado: crea versions/neoforge-<v>/ con json
+// + descarga libraries; requiere launcher_profiles.json en el root, se crea si falta).
+// Reutiliza cualquier neoforge ya instalado para ese MC para no reinstalar cada vez.
+async function installNeoForge(mcVersion: string, send: (m:string)=>void, javaPath: string): Promise<string> {
+  const vDir = path.join(ROOT, 'versions')
+  try {
+    if (fs.existsSync(vDir)) {
+      const existing = fs.readdirSync(vDir)
+        .filter(d => d.toLowerCase().startsWith('neoforge-') && fs.statSync(path.join(vDir, d)).isDirectory())
+        .filter(d => {
+          try { return JSON.parse(fs.readFileSync(path.join(vDir, d, `${d}.json`), 'utf-8')).inheritsFrom === mcVersion } catch { return false }
+        })
+      if (existing.length) {
+        existing.sort((a, b) => cmpNumericVersion(a.slice(9), b.slice(9)))
+        const pick = existing[existing.length - 1]
+        send(`  NeoForge reutilizado: ${pick} (ya instalado para ${mcVersion})`)
+        return pick
+      }
+    }
+  } catch {}
+  send(`  NeoForge: buscando versiones estables para ${mcVersion}...`)
+  const prefix = neoforgeVersionPrefix(mcVersion)
+  const { data: xml } = await axios.get('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml', { timeout: 10000 })
+  const all: string[] = [...String(xml).matchAll(/<version>([^<]+)<\/version>/g)].map(mg => mg[1])
+  const candidates = all
+    .filter(v => v.startsWith(prefix))
+    .filter(v => !/(alpha|beta|pre|rc|snapshot|\+)/i.test(v)) // solo estables
+    .sort((a, b) => cmpNumericVersion(a, b))
+  if (!candidates.length) throw new Error(`No hay versiones de NeoForge para Minecraft ${mcVersion} (maven prefijo "${prefix}").`)
+  const nfVer = candidates[candidates.length - 1]
+  const customId = `neoforge-${nfVer}`
+  send(`  NeoForge ${nfVer} encontrado (instalador oficial ~7 MB)`)
+  const installerUrl = `https://maven.neoforged.net/releases/net/neoforged/neoforge/${nfVer}/neoforge-${nfVer}-installer.jar`
+  const installerPath = path.join(os.tmpdir(), `hydra-neoforge-${nfVer}-installer.jar`)
+  try {
+    const res = await axios.get(installerUrl, { responseType: 'arraybuffer', timeout: 180000 })
+    fs.writeFileSync(installerPath, Buffer.from(res.data))
+  } catch (e:any) {
+    throw new Error(`No se pudo descargar el instalador de NeoForge ${nfVer}: ${String(e?.message || e)}`)
+  }
+  // el instalador exige un launcher_profiles.json en el root (si no, error "run the launcher first")
+  try {
+    const lpPath = path.join(ROOT, 'launcher_profiles.json')
+    if (!fs.existsSync(lpPath)) fs.writeFileSync(lpPath, JSON.stringify({ profiles: {}, clientToken: `hydra-${Date.now()}`, selectedUser: {}, authenticationDatabase: {} }, null, 2))
+  } catch {}
+  send(`  Ejecutando instalador NeoForge (primera vez: descarga las librerías, puede tardar)...`)
+  const outTail: string[] = []
+  await new Promise<void>((resolve, reject) => {
+    const p = spawn(javaPath, ['-jar', installerPath, '--installClient', ROOT], { windowsHide: true })
+    const onData = (buf: Buffer) => {
+      const s = buf.toString()
+      outTail.push(s)
+      if (outTail.length > 60) outTail.shift()
+      const last = s.split(/\r?\n/).filter(Boolean).pop()
+      if (last) send(`    ${last.slice(0, 160)}`)
+    }
+    p.stdout.on('data', onData)
+    p.stderr.on('data', onData)
+    p.on('error', (e) => reject(new Error(`No se pudo ejecutar el instalador de NeoForge: ${e.message}`)))
+    p.on('close', (code) => {
+      if (code === 0) resolve()
+      else {
+        const tail = outTail.join('').split(/\r?\n/).filter(Boolean).slice(-8).join('\n')
+        reject(new Error(`El instalador de NeoForge terminó con código ${code}:\n${tail}`))
+      }
+    })
+  })
+  try { fs.rmSync(installerPath, { force: true }) } catch {}
+  const jsonPath = path.join(vDir, customId, `${customId}.json`)
+  if (!fs.existsSync(jsonPath)) throw new Error(`El instalador terminó pero no creó ${customId}.json — NeoForge no quedó instalado.`)
+  send(`  ✓ NeoForge ${nfVer} instalado (${customId})`)
+  return customId
 }
 
 // --- JAVA detect (usa JAVA_HOME y Adoptium) ---
@@ -1117,6 +1211,8 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     let mcVersion: string = version
     let packLoader = ''
     let packInstanceDir = ''
+    // versión con loader propio ya en disco (neoforge-21.1.265, fabric-loader-...): se lanza directo
+    let preInstalledCustom = ''
     try {
       const packJson = path.join(root, 'versions', version, `${version}.json`)
       if (fs.existsSync(packJson)) {
@@ -1141,6 +1237,18 @@ ipcMain.handle('launch', async (_e, opts:any) => {
             }
           } catch {}
           if (cleaned) send(`  limpiados ${cleaned} mods que versiones anteriores habían copiado a /mods`)
+        } else {
+          // Versión con loader ya instalada en disco (neoforge-21.1.265, fabric-loader-0.16.x-1.21.1...):
+          // se lanza directo como custom usando su base vanilla (inheritsFrom). Sin esto, elegir una
+          // versión ya instalada con el loader equivocado en la UI intentaba instalar el loader encima
+          // (p.ej. Fabric sobre "neoforge-21.1.265" → HTTP 400 de meta.fabricmc.net).
+          const detLoader = detectLoaderFromJson(pj, version)
+          const inherits = String(pj?.inheritsFrom || '')
+          if (detLoader && inherits && inherits !== version) {
+            preInstalledCustom = version
+            mcVersion = inherits
+            send(`  versión "${version}" ya instalada (loader ${detLoader}, base Minecraft ${inherits}) → se lanza directa sin reinstalar el loader`)
+          }
         }
       }
     } catch (e: any) { send(`  aviso modpack: ${String(e?.message || e)}`) }
@@ -1263,12 +1371,40 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     let forgePath: string | null = null
     // el modpack impone su propio loader; si no, usa el seleccionado en la UI
     const effLoader = packLoader || opts.loader
-    if (effLoader === 'fabric') {
+    if (preInstalledCustom) {
+      // versión con loader propio ya en disco: su json manda, se lanza tal cual (sin instalar nada)
+      customVersion = preInstalledCustom
+    } else if (effLoader === 'fabric') {
       customVersion = await installFabric(mcVersion, send)
-    } else if (effLoader === 'forge' || effLoader === 'neoforge') {
+    } else if (effLoader === 'neoforge') {
+      customVersion = await installNeoForge(mcVersion, send, javaPath)
+    } else if (effLoader === 'forge') {
       const res = await installForge(mcVersion, send)
       if (res.endsWith('.jar')) forgePath = res
       else customVersion = res
+    }
+
+    // jvm args del json custom — MCLC solo aplica los de la versión vanilla, y NEOFORGE los
+    // necesita para arrancar (-p module-path + --add-modules ALL-MODULE-PATH + --add-opens/--add-exports
+    // de BootstrapLauncher). Se copian del json con sus variables sustituidas y se pasan como customArgs.
+    let jvmCustomArgs: string[] = []
+    if (customVersion) {
+      try {
+        const cj = path.join(root, 'versions', customVersion, `${customVersion}.json`)
+        if (fs.existsSync(cj)) {
+          const jvmRaw = JSON.parse(fs.readFileSync(cj, 'utf-8'))?.arguments?.jvm
+          if (Array.isArray(jvmRaw) && jvmRaw.length) {
+            const sep = path.sep === '\\' ? ';' : ':'
+            jvmCustomArgs = jvmRaw
+              .filter((a:any)=> typeof a === 'string') // entradas con reglas os se ignoran (ya cubiertas por la vanilla)
+              .map((a:string)=> a
+                .replace(/\$\{library_directory\}/g, path.join(root, 'libraries'))
+                .replace(/\$\{classpath_separator\}/g, sep)
+                .replace(/\$\{version_name\}/g, customVersion as string))
+            send(`  jvm args de ${customVersion}: ${jvmCustomArgs.length} (module path de ${path.join(root, 'libraries')})`)
+          }
+        }
+      } catch (e:any) { send(`  aviso al leer jvm args del custom json: ${String(e?.message || e)}`) }
     }
 
     // diagnÃ³stico visible en Ajustes â†’ Logs: quÃ© custom se va a usar y cuÃ¡ntos mods hay
@@ -1297,6 +1433,7 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     }
     if (javaPath) launchOpts.javaPath = javaPath
     if (forgePath) launchOpts.forge = forgePath
+    if (jvmCustomArgs.length) launchOpts.customArgs = jvmCustomArgs
     if (opts.server?.ip) {
       launchOpts.quickPlay = { type: 'multiplayer', identifier: `${opts.server.ip}:${opts.server.port||25565}` }
       send(`  quickPlay → ${opts.server.ip}:${opts.server.port||25565}`)

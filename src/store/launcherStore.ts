@@ -2,8 +2,8 @@ import { create } from 'zustand'
 
 type Account = { name: string; uuid: string; type: 'offline'|'microsoft'; access_token?: string; msRefresh?: string }
 type Server = { id:string; name:string; ip:string; port:number; type:string; desc:string; banner:string }
-export type Profile = { id:string; name:string; icon:string; version:string; loader:'vanilla'|'fabric'|'forge'; ram:{min:string;max:string}; serverIp?:string }
-type Config = { ram:{min:string;max:string}; javaPath:string; resolution:{w:number;h:number}; servers:Server[]; lastVersion?:string; lastLoader?:'vanilla'|'fabric'|'forge'; lastAccountUuid?:string; cleanupOldOnUpdate?:boolean; uiZoom?:number; curseforgeKey?:string; serversVersion?:number; theme?:string; profiles?:Profile[]; votes?:Record<string,number>; discordClientId?:string; animatedBg?:string; animatedBgFile?:string; uiSounds?:boolean; uiSoundsVolume?:number }
+export type Profile = { id:string; name:string; icon:string; version:string; loader:'vanilla'|'fabric'|'forge'|'neoforge'; ram:{min:string;max:string}; serverIp?:string }
+type Config = { ram:{min:string;max:string}; javaPath:string; resolution:{w:number;h:number}; servers:Server[]; lastVersion?:string; lastLoader?:'vanilla'|'fabric'|'forge'|'neoforge'; lastAccountUuid?:string; cleanupOldOnUpdate?:boolean; uiZoom?:number; curseforgeKey?:string; serversVersion?:number; theme?:string; profiles?:Profile[]; votes?:Record<string,number>; discordClientId?:string; animatedBg?:string; animatedBgFile?:string; uiSounds?:boolean; uiSoundsVolume?:number }
 
 // Los logs llegan en ráfagas (miles de líneas durante el lanzamiento): se agrupan en
 // tandas de 150ms para que React no se congele y la ventana no quede "No responde".
@@ -11,7 +11,7 @@ let logBuf: string[] = []
 let logFlush: ReturnType<typeof setTimeout> | null = null
 
 export const useStore = create<{
-  versions:any[]|null; latest:any; selectedVersion:string; loader:'vanilla'|'fabric'|'forge';
+  versions:any[]|null; latest:any; selectedVersion:string; loader:'vanilla'|'fabric'|'forge'|'neoforge';
   accounts:Account[]; activeAccount:Account|null;
   config:Config; logs:string[]; progress:any; launching:boolean;
   installedVersions:any[];

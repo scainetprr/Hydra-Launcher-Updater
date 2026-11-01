@@ -1,6 +1,6 @@
 {
   "name": "hydra-launcher",
-  "version": "1.3.27",
+  "version": "1.3.28",
   "description": "Hydra Launcher - Launcher original para HyperHard Network y Eventos Hydra",
   "main": "dist-electron/main.js",
   "type": "module",
@@ -56,7 +56,7 @@
     "compression": "maximum",
     "appId": "com.hydralauncher.app",
     "productName": "Hydra Launcher",
-    "copyright": "Copyright © 2026 Dylan David Gomez (scainetprr)",
+    "copyright": "Copyright Â© 2026 Dylan David Gomez (scainetprr)",
     "directories": {
       "output": "release",
       "buildResources": "build"

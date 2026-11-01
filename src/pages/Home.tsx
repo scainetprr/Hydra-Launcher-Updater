@@ -45,6 +45,11 @@ export default function Home() {
       setNews((r?.posts||[]).slice(0,3))
     }).catch(()=>setNews([]))
   }, [])
+  // Ensure error states clear properly: reset launching if stuck, so UI input isn't blocked
+  useEffect(() => {
+    const errTimeout = setTimeout(() => set({ launching: false }), 10000)
+    return () => clearTimeout(errTimeout)
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -143,7 +148,7 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-3 mt-6">
               <div className="relative flex">
                 <button onClick={()=>launchGame()} disabled={launching}
-                  className="h-[58px] pl-5 pr-4 rounded-l-2xl text-left text-white shadow-[0_10px_40px_rgba(34,197,94,0.35)] hover:scale-[1.015] active:scale-[0.985] transition disabled:opacity-60 flex items-center gap-4"
+                  className="h-[58px] pl-5 pr-4 rounded-l-2xl text-left text-white shadow-[0_10px_40px_rgba(34,197,94,0.35)] hover:scale-[1.015] active:scale-[0.985] transition disabled:opacity-60 flex items-center gap-4 ml-2"
                   style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
                   <span className="text-xl">{launching ? '⏳' : '▶'}</span>
                   <span>

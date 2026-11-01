@@ -41,6 +41,16 @@ export default function Settings(){
     return next
   }
 
+  const MANUAL_DOWNLOAD_URL = 'https://github.com/scainetprr/hydra-launcher-web/releases/latest'
+
+  const friendlyUpdateError = (err?: string|null): string => {
+    const e = (err || '').toLowerCase()
+    if (e.includes('404') || e.includes('checksum') || e.includes('sha2') || e.includes('sha512') || e.includes('no se pudo verificar') || e.includes('no se pudo descargar')) {
+      return 'Ha ocurrido un error al buscar actualizaciones. Por favor, reinstala el launcher desde la web oficial.'
+    }
+    return `Ha ocurrido un error al buscar actualizaciones: ${err || 'sin conexión'}`
+  }
+
   const checkUpdates = async () => {
     setUpdStatus({msg:'Buscando actualizaciones...',kind:'busy'})
     const res = await window.api?.checkUpdates?.()
@@ -48,12 +58,12 @@ export default function Settings(){
       const latest = res.updateInfo?.version
       if (latest && latest !== appVer) { setUpdInfo(res.updateInfo); setUpdStatus({msg:`Hay una versión nueva: v${latest}`,kind:'ok'}) }
       else setUpdStatus({msg:`Estás al día (v${appVer})`,kind:'ok'})
-    } else setUpdStatus({msg:`Error: ${res?.error||'sin conexión'}`,kind:'err'})
+    } else setUpdStatus({msg: friendlyUpdateError(res?.error), kind:'err'})
   }
   const installUpdate = async () => {
     setUpdStatus({msg:'Descargando e instalando…',kind:'busy'})
     const res:any = await window.api?.installUpdate?.({ cleanupOld: config.cleanupOldOnUpdate !== false })
-    if (res && res.ok === false) setUpdStatus({msg:`Error: ${res.error||'no se pudo instalar'}`,kind:'err'})
+    if (res && res.ok === false) setUpdStatus({msg: friendlyUpdateError(res?.error), kind:'err'})
   }
   const cleanNow = async () => {
     const res = await window.api?.cleanupOldInstallers?.()

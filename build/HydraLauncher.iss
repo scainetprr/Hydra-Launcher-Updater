@@ -55,7 +55,7 @@ SignedUninstaller=no
 ; cerrar la app si está en uso para poder reemplazar sus archivos
 CloseApplications=yes
 RestartIfNeededByRun=false
-; panel lateral oscuro + imagen pequeña
+; panel lateral oscuro + imagen pequeña (nuevas imágenes cyberpunk)
 WizardImageFile=wizard\WizardImage.bmp
 WizardSmallImageFile=wizard\WizardSmallImage.bmp
 ; título de barra
@@ -120,11 +120,13 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{#MyApp
 // si no, el texto blanco hereda fondo claro y desaparece.
 
 const
-  CLR_BG      = $2E2E2E;  // fondo general (gris oscuro)
-  CLR_PANEL   = $262626;  // memos, listas, edits
+  CLR_BG      = $1E1E3E;  // fondo general (azul oscuro legible)
+  CLR_PANEL   = $2A2A4E;  // memos, listas, edits (azul oscuro panel)
   CLR_TEXT    = $FFFFFF;
   CLR_TEXT_DIM= $C8C8C8;
-  CLR_GREEN   = $32C845;  // acento
+  CLR_VIOLET  = $D455FF;  // acento principal (violeta cyberpunk)
+  CLR_CYAN    = $00D4FF;  // acento secundario (cian)
+  CLR_GREEN   = $32C845;  // verde solo para éxito
 
 procedure DarkenChildren(Parent: TWinControl; TextColor: Integer);
 var
@@ -209,7 +211,7 @@ begin
 
   WizardForm.PageNameLabel.ParentBackground := False;
   WizardForm.PageNameLabel.Color := CLR_BG;
-  WizardForm.PageNameLabel.Font.Color := CLR_GREEN;
+  WizardForm.PageNameLabel.Font.Color := CLR_VIOLET;
   WizardForm.PageNameLabel.Font.Size := 13;
   WizardForm.PageNameLabel.Font.Style := [fsBold];
 
@@ -224,10 +226,10 @@ begin
   StyleButton(WizardForm.CancelButton, False);
   StyleButton(WizardForm.BackButton, False);
   StyleButton(WizardForm.NextButton, True);
-  WizardForm.NextButton.Font.Color := CLR_GREEN;
+  WizardForm.NextButton.Font.Color := CLR_VIOLET;
 
   // Página de bienvenida (Outer): título grande + descripción
-  WizardForm.WelcomeLabel1.Font.Color := CLR_GREEN;
+  WizardForm.WelcomeLabel1.Font.Color := CLR_VIOLET;
   WizardForm.WelcomeLabel1.Font.Size := 15;
   WizardForm.WelcomeLabel1.Font.Style := [fsBold];
   WizardForm.WelcomeLabel2.Font.Color := CLR_TEXT_DIM;
@@ -241,7 +243,7 @@ begin
   WizardForm.DirEdit.Font.Size := 9;
   WizardForm.GroupEdit.Font.Size := 9;
 
-  WizardForm.FinishedLabel.Font.Color := CLR_GREEN;
+  WizardForm.FinishedLabel.Font.Color := CLR_VIOLET;
   WizardForm.FinishedLabel.Font.Size := 14;
   WizardForm.FinishedLabel.Font.Style := [fsBold];
 
