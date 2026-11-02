@@ -944,16 +944,20 @@ function detectLoaderFromJson(j: any, id: string): string | null {
   if (mc.includes('fabric') || mc.includes('knotclient')) return 'fabric'
   if (mc.includes('neoforge')) return 'neoforge'
   if (mc.includes('forge') || mc.includes('cpw.mods') || mc.includes('launchwrapper')) {
-    // launchwrapper es usado por forge antiguo y fabric viejo; refina con libraries
+    // launchwrapper es usado por forge antiguo y fabric viejo; refina con libraries.
+    // IMPORTANTE: el json de NEOFORGE incluye librerías del grupo net.fabricmc
+    // (sponge-mixin, que NeoForge usa para sus mixins), así que comprobar "fabric"
+    // a secas clasificaba neoforge-* como fabric. Orden: neoforge primero y fabric
+    // solo por fabric-loader (el loader real de Fabric).
     const libs = Array.isArray(j?.libraries) ? j.libraries.map((l: any) => String(l?.name || '').toLowerCase()).join(' ') : ''
-    if (libs.includes('fabric')) return 'fabric'
     if (libs.includes('neoforge')) return 'neoforge'
+    if (libs.includes('fabric-loader')) return 'fabric'
     if (libs.includes('forge')) return 'forge'
     return 'forge'
   }
   const libs = Array.isArray(j?.libraries) ? j.libraries.map((l: any) => String(l?.name || '').toLowerCase()).join(' ') : ''
-  if (libs.includes('fabric-loader') || libs.includes('sponge-mixin')) return 'fabric'
   if (libs.includes('neoforge')) return 'neoforge'
+  if (libs.includes('fabric-loader')) return 'fabric'
   if (libs.includes('minecraftforge')) return 'forge'
   return detectLoaderFromId(id)
 }
