@@ -159,6 +159,14 @@ export default function Settings(){
         </div>
         <div className="text-[11px] text-white/35">El fondo animado se ve al instante en todo el launcher. "Personalizado" acepta un GIF, imagen o video (MP4/WebM) de tu PC — el archivo se copia a .minecraft\hydra-bg y puedes quitarlo volviendo a elegir otro fondo.</div>
         <div className="flex items-center gap-3 pt-1">
+          <label className="text-xs text-white/50 w-28">Modo ligero</label>
+          <label className="flex items-center gap-2 text-xs text-white/75 cursor-pointer">
+            <input type="checkbox" checked={!!config.lowFx} onChange={e=>patchConfig({ lowFx: e.target.checked })} className="accent-violet-600"/>
+            Ahorrar recursos (PC lentas / gráficos integrados)
+          </label>
+        </div>
+        <div className="text-[11px] text-white/35">Desactiva blur, estrellas animadas y efectos de fondo para que el launcher vaya más fluido en PCs modestas (también aligera el trabajo de la GPU mientras juegas).</div>
+        <div className="flex items-center gap-3 pt-1">
           <label className="text-xs text-white/50 w-28">Sonidos de la interfaz</label>
           <label className="flex items-center gap-2 text-xs text-white/75 cursor-pointer">
             <input type="checkbox" checked={config.uiSounds !== false} onChange={e=>{
@@ -260,7 +268,7 @@ export default function Settings(){
 
       <div className="glass rounded-2xl p-4 flex items-center gap-3 card-hover">
         <div className="text-sm"><b>Almacenamiento</b><div className="text-xs text-white/50">Ubicación: %APPDATA%/.minecraft • Versiones, assets y mods compartidos con vanilla</div></div>
-        <button onClick={()=>{ if(confirm('¿Limpiar logs?')) set({logs:[]})}} className="ml-auto bg-white text-black font-bold px-4 py-2 rounded-xl text-sm">Limpiar cache</button>
+        <button onClick={async ()=>{ if(await confirm('¿Limpiar logs?')) set({logs:[]})}} className="ml-auto bg-white text-black font-bold px-4 py-2 rounded-xl text-sm">Limpiar cache</button>
       </div>
     </div>
   )

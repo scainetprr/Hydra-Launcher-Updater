@@ -1,0 +1,4 @@
+owner: scainetprr
+repo: hydra-launcher-web
+provider: github
+updaterCacheDirName: hydra-launcher-updater

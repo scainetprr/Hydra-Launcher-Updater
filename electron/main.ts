@@ -449,6 +449,7 @@ ipcMain.handle('pick-bg-file', async () => {
       ]
     }
     const r = win && !win.isDestroyed() ? await dialog.showOpenDialog(win, opts as any) : await dialog.showOpenDialog(opts as any)
+    focusRenderer() // el dialogo nativo de Windows roba el foco al renderer (barra de búsqueda inutilizable)
     const src = r.filePaths?.[0]
     if (!src || r.canceled) return { ok: false, canceled: true }
     const sizeMB = fs.statSync(src).size / (1024 * 1024)
@@ -842,21 +843,23 @@ async function installManagedJava(major: number, send: (m: string) => void): Pro
 async function ensureManagedJava(major: number, mcVer: string, send: (m: string) => void): Promise<{ ok: boolean; javaPath: string; error?: string }> {
   const existing = getManagedJavaExe(major)
   if (existing) return { ok: true, javaPath: existing }
-  const box: any = {
-    type: 'question',
-    buttons: [`Sí, instalar Java ${major} y jugar`, 'Ahora no'],
-    defaultId: 0,
-    cancelId: 1,
-    title: 'Hydra Launcher — Java requerida',
-    message: `Para jugar Minecraft ${mcVer} necesitas Java ${major}.`,
-    detail: `En tu PC no se encontró Java ${major} (las versiones antiguas, como Java 8, no sirven para esta versión).\n\nHydra puede instalar Adoptium Temurin ${major} — gratuita, ~45 MB, sin permisos de administrador y solo se hace una vez. ¿La instalamos ahora?`,
-    noLink: true
-  }
   let accept = false
   try {
-    const w = win && !win.isDestroyed() ? win : undefined
-    const r = w ? await dialog.showMessageBox(w, box) : await dialog.showMessageBox(box)
-    accept = r.response === 0
+    // modal in-app (NO dialogo nativo: los nativos roban el foco al renderer y dejaban
+    // la barra de búsqueda de todas las secciones inutilizable tras cerrarlos)
+    const r = await showModalToRenderer({
+      kind: 'confirm',
+      titulo: 'Java requerida',
+      problema: `Para jugar Minecraft ${mcVer} necesitas Java ${major}.`,
+      detalle: `En tu PC no se encontró Java ${major} — las versiones antiguas (como Java 8) no sirven para esta versión.`,
+      soluciones: [
+        `Hydra puede instalar Adoptium Temurin ${major} ahora: gratuita, ~45 MB, sin permisos de administrador y solo se hace una vez.`,
+        'Si prefieres, instálala tú desde adoptium.net/temurin (JRE ' + major + ', Windows x64).'
+      ],
+      okLabel: `Sí, instalar Java ${major} y jugar`,
+      cancelLabel: 'Ahora no'
+    })
+    accept = r === 0
   } catch { accept = false }
   if (!accept) {
     return { ok: false, javaPath: '', error: `Se necesita Java ${major} para jugar ${mcVer} y declinaste la instalación automática.\n\nPuedes instalarla tú mismo desde https://adoptium.net/temurin/releases/ (JRE ${major}, Windows x64) o vuelve a intentarlo y acepta en la ventana.` }
@@ -987,6 +990,9 @@ ipcMain.handle('get-installed-versions-full', async () => {
           valid = true
           if (j.hydraModpack?.name) modpack = String(j.hydraModpack.name)
           if (j.hydraModpack?.base) base = String(j.hydraModpack.base)
+          // versiones con loader propio (neoforge-21.1.265, fabric-loader-...): la base
+          // real de Minecraft vive en inheritsFrom — sin esto los filtros por MC no la encuentran
+          if (!base && typeof j.inheritsFrom === 'string' && j.inheritsFrom) base = j.inheritsFrom
           if (j.hydraModpack?.projectId) projectId = String(j.hydraModpack.projectId)
           loader = detectLoaderFromJson(j, d)
         } catch {}
@@ -1027,13 +1033,36 @@ function getAllModsRecursive(dir: string): string[] {
   return files
 }
 
+// Deduce el loader de los mods instalados leyendo el manifiesto de cada jar
+// (fabric.mod.json → fabric, META-INF/neoforge.mods.toml → neoforge, mods.toml/mcmod.info → forge).
+// Solo lee el indice de cada zip (sin descomprimir), asi que es rapido aunque haya decenas de mods.
+async function detectModsFolderLoader(mDir: string): Promise<string | null> {
+  try {
+    const AdmZip = (await import('adm-zip')).default
+    const jars = getAllModsRecursive(mDir).slice(0, 80)
+    let fabric = 0, forge = 0, neoforge = 0
+    for (const rel of jars) {
+      try {
+        const names = new AdmZip(path.join(mDir, rel)).getEntries().map(e => e.entryName)
+        if (names.includes('fabric.mod.json')) fabric++
+        else if (names.includes('META-INF/neoforge.mods.toml')) neoforge++
+        else if (names.includes('META-INF/mods.toml') || names.includes('mods.toml') || names.includes('mcmod.info')) forge++
+      } catch {}
+    }
+    const best = ([['neoforge', neoforge], ['fabric', fabric], ['forge', forge]] as [string, number][])
+      .sort((a, b) => b[1] - a[1])[0]
+    return best[1] > 0 ? best[0] : null
+  } catch { return null }
+}
+
 ipcMain.handle('get-mods-info', async () => {
   try {
     const mDir = path.join(ROOT, 'mods')
-    if (!fs.existsSync(mDir)) return { count: 0, files: [] }
+    if (!fs.existsSync(mDir)) return { count: 0, files: [], loader: null }
     const files = getAllModsRecursive(mDir)
-    return { count: files.length, files: files.slice(0, 50) }
-  } catch { return { count: 0, files: [] } }
+    const loader = await detectModsFolderLoader(mDir)
+    return { count: files.length, files: files.slice(0, 50), loader }
+  } catch { return { count: 0, files: [], loader: null } }
 })
 
 // --- MODPACKS ---
@@ -1181,13 +1210,18 @@ ipcMain.handle('launch', async (_e, opts:any) => {
   if (dup) {
     const aviso = `Ya hay una instancia de Minecraft en curso con ${acctName} (${dup.info}). Cierra esa sesión o elige otra cuenta para abrir otra.`
     send(`⚠ ${aviso}`)
-    const boxOpts = {
-      type: 'warning' as const, buttons: ['Entendido'], defaultId: 0, noLink: true,
-      title: 'Hydra Launcher — instancia en curso',
-      message: `Ya hay una instancia de Minecraft en curso con ${acctName}`,
-      detail: `${dup.info}\n\nCierra esa sesión o elige otra cuenta en Cuentas. Puedes abrir varias instancias a la vez siempre que cada una use un usuario distinto.`
-    }
-    try { if (win && !win.isDestroyed()) await dialog.showMessageBox(win, boxOpts); else await dialog.showMessageBox(boxOpts) } catch {}
+    try {
+      await showModalToRenderer({
+        kind: 'alert',
+        titulo: 'Instancia en curso',
+        problema: `Ya hay una instancia de Minecraft en curso con ${acctName}.`,
+        detalle: dup.info,
+        soluciones: [
+          'Cierra esa sesión o elige otra cuenta en Cuentas.',
+          'Puedes abrir varias instancias a la vez siempre que cada una use un usuario distinto.'
+        ]
+      })
+    } catch {}
     return { ok: false, alreadyRunning: true, error: aviso }
   }
   if (mcSessions.length) send(`ℹ abriendo instancia adicional con ${acctName} (${mcSessions.length} en curso)`)
@@ -1460,14 +1494,16 @@ ipcMain.handle('launch', async (_e, opts:any) => {
 
     send(`  root=${root}`)
     send(`  launching... (descarga puede tardar la 1ra vez)`)
+    // Se oculta ANTES del lanzamiento: MCLC valida/hasea SHA1 de cientos de archivos
+    // (libs, assets, jar) de forma sincrona y eso congelaba la ventana "un momento
+    // antes de cerrarse". Si algo falla, el catch la vuelve a mostrar con el error.
+    try { if (win && !win.isDestroyed()) win.hide() } catch {}
     const proc: any = await launcher.launch(launchOpts)
     // MCLC devuelve null en vez de throw cuando no puede arrancar (p.ej. Java incompatible) — antes esto pasaba como exito silencioso
     if (!proc) throw new Error('Minecraft no pudo arrancar (proceso nulo). Tu Java puede ser incompatible con esta version — si tienes varias javas instaladas, prueba a elegir otra en Ajustes → Java.')
     send(`Minecraft lanzado PID ${proc?.pid || '?'}`)
     session.info = `Minecraft ${mcVersion}${packLoader && packLoader !== 'vanilla' ? ` (${packLoader})` : ''} como ${acctName} — PID ${proc?.pid || '?'}`
     mcSessions.push(session)
-    // el launcher se oculta mientras Minecraft corre (se restaura en close/error)
-    try { if (win && !win.isDestroyed()) win.hide() } catch {}
     if (proc?.on) {
       proc.on('close', (code:number)=> {
         mcSessions = mcSessions.filter(s => s !== session)
@@ -1518,8 +1554,23 @@ ipcMain.handle('launch', async (_e, opts:any) => {
     recordSessionEnd(false)
     lastIdleAt = 0
     setIdlePresence()
-    try { dialog.showErrorBox('Hydra Launcher - fallo al lanzar', `${msg}\n\nRevisa Ajustes → Logs\nJava: ${findJavaCandidates().join(', ') || 'no detectado'}\nVersión: ${opts?.version}`) } catch {}
-    return { ok:false, error: msg + '\n' + stack }
+    // la ventana puede estar oculta (se oculta justo antes de lanzar): restaurarla y
+    // mostrar el error como modal DENTRO del launcher (sin dialogos nativos que
+    // robaban el foco y dejaban la barra de búsqueda inutilizable)
+    try { if (win && !win.isDestroyed()) { win.show(); win.focus() } } catch {}
+    const culprit = findCulpritMod(msg + '\n' + stack)
+    const sols: string[] = ['Revisa el detalle completo en Ajustes → Logs.', 'Prueba con una versión estable (1.21.1) y Java en automático.']
+    if (culprit) sols.unshift(`Quita temporalmente "${culprit}" de la carpeta mods y vuelve a lanzar: si arranca, ese mod es el culpable.`)
+    showModalToRenderer({
+      kind: 'error',
+      titulo: 'No se pudo lanzar Minecraft',
+      problema: String(e?.message || e).split('\n')[0].slice(0, 400),
+      detalle: `Versión: ${opts?.version} • Java: ${findJavaCandidates().join(', ') || 'no detectado'}`,
+      soluciones: sols,
+      culprit,
+      report: `${msg}\n${stack}`.slice(0, 12000)
+    }).catch(() => {})
+    return { ok:false, error: msg + '\n' + stack, modalShown: true }
   }
 })
 
@@ -1681,8 +1732,13 @@ ipcMain.handle('ping-full', (_e, ip: string, port: number) => new Promise(res =>
 }))
 
 // --- MODS / MODPACKS: Modrinth + CurseForge ---
+// API key compartida por defecto: todos los usuarios pueden usar CurseForge sin
+// configurar nada (la key solo da acceso a la API publica, NO a ninguna cuenta).
+// Cada usuario puede sobreescribirla con la suya propia desde Mods → 🔑 API key.
+const CF_SHARED_KEY = '$2a$10$.RnFK65J2B5SkalxHkQDe.lW3uEeUG4i5R1IMVSCZAfz7VYB/GF..'
 async function getCurseForgeKey(): Promise<string> {
-  return readConfigFile()?.curseforgeKey || ''
+  const custom = readConfigFile()?.curseforgeKey || ''
+  return custom || CF_SHARED_KEY
 }
 const CF_LOADER: Record<string, number> = { forge: 1, fabric: 3, quilt: 4, neoforge: 5, vanilla: 0 }
 
@@ -1737,6 +1793,228 @@ ipcMain.handle('browse-content', async (_e, opts: any) => {
     }
   } catch (e: any) {
     return { ok: false, error: String(e?.response?.data?.message || e?.message || e) }
+  }
+})
+
+// Instala un modpack (zip ya descargado) como version AISLADA en versions/<id>/ con
+// sus mods y overrides. Compartido por install-content (catalogo) e import-modpack
+// (archivo local del jugador: .mrpack de Modrinth o .zip de CurseForge).
+async function installModpackFromZip(buf: Buffer, projectId: string, fileName: string, cfHeaders: any, send: (m: string) => void): Promise<any> {
+  const AdmZip = (await import('adm-zip')).default
+  const zip = new AdmZip(buf)
+  const tempDir = path.join(HYDRA_DIR, 'tmp-pack-' + Date.now())
+  fs.mkdirSync(tempDir, { recursive: true })
+  try {
+    zip.extractAllTo(tempDir, true)
+    let manifest: any = null
+    let packName = fileName.replace(/\.(mrpack|zip)$/i, '')
+    let baseVersion = ''
+    let packLoader = 'vanilla'
+    let installed = 0
+    let skipped = 0
+    const manifestPath = path.join(tempDir, 'modrinth.index.json')
+    const cfManifestPath = path.join(tempDir, 'manifest.json')
+    const kind = fs.existsSync(manifestPath) ? 'modrinth' : 'curseforge'
+    if (fs.existsSync(manifestPath)) {
+      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+      packName = manifest?.name || packName
+      baseVersion = String(manifest?.dependencies?.minecraft || '')
+      if (manifest?.dependencies?.['fabric-loader']) packLoader = 'fabric'
+      else if (manifest?.dependencies?.neoforge) packLoader = 'neoforge'
+      else if (manifest?.dependencies?.forge) packLoader = 'forge'
+      else if (manifest?.dependencies?.['java-version']) packLoader = 'vanilla'
+    } else if (fs.existsSync(cfManifestPath)) {
+      manifest = JSON.parse(fs.readFileSync(cfManifestPath, 'utf-8'))
+      packName = manifest?.name || packName
+      baseVersion = String(manifest?.minecraftVersion || '')
+      const ml = (manifest?.modLoaders || []).find((m: any) => m.primary) || manifest?.modLoaders?.[0]
+      const mlId = String(ml?.id || '')
+      if (mlId.startsWith('fabric')) packLoader = 'fabric'
+      else if (mlId.startsWith('neoforge')) packLoader = 'neoforge'
+      else if (mlId.startsWith('forge')) packLoader = 'forge'
+    } else {
+      return { ok: false, error: 'El archivo no tiene manifest (no es un modpack valido)' }
+    }
+
+    // Crear carpeta de version/<id> para que aparezca en Instaladas y se pueda lanzar
+    const sanitizeId = (s: string) => s.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'modpack'
+    let packId = sanitizeId(packName)
+    if (fs.existsSync(path.join(ROOT, 'versions', packId))) packId = `${packId}-${Date.now().toString(36)}`
+    const packDir = path.join(ROOT, 'versions', packId)
+    const packModsDir = path.join(packDir, 'mods')
+    fs.mkdirSync(packModsDir, { recursive: true })
+    send(`  Modpack ${packName} → version ${packId} (base ${baseVersion || '?'}, ${packLoader}, ${kind})`)
+
+    const files = manifest?.files || []
+    send(`  ${files.length} archivos...`)
+    if (fs.existsSync(manifestPath)) {
+      // Modrinth (.mrpack): URLs directas en downloads[]
+      for (const f of files) {
+        try {
+          const url = Array.isArray(f.downloads) && f.downloads.length ? f.downloads[0] : ''
+          if (!url) { skipped++; continue }
+          const destPath = path.join(packModsDir, path.basename(f.path || ''))
+          const fr = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000 })
+          fs.writeFileSync(destPath, Buffer.from(fr.data))
+          installed++
+          send(`    OK ${path.basename(f.path || '')}`)
+        } catch { skipped++ }
+      }
+    } else {
+      // CurseForge: projectID/fileID vía API
+      for (const f of files) {
+        try {
+          if (!cfHeaders['x-api-key']) { skipped++; continue }
+          const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${f.projectID}/files/${f.fileID}/download-url`, { headers: cfHeaders, timeout: 15000 })
+          const fr = await axios.get(dl.data, { responseType: 'arraybuffer', timeout: 120000 })
+          const m = String(dl.data).split('?')[0].split('/').pop()
+          fs.writeFileSync(path.join(packModsDir, decodeURIComponent(m || `${f.projectID}.jar`)), Buffer.from(fr.data))
+          installed++
+        } catch { skipped++ }
+      }
+    }
+
+    // Overrides (config, resourcepacks, options...) → dentro de la instancia del pack (NO al .minecraft global)
+    const overrides = path.join(tempDir, 'overrides')
+    if (fs.existsSync(overrides)) {
+      try { fs.cpSync(overrides, packDir, { recursive: true }) } catch {}
+      send('  overrides aplicados a la instancia del pack')
+    }
+
+    // JSON de version: el pack aparece en Instaladas y el launch lo detecta
+    fs.writeFileSync(path.join(packDir, packId + '.json'), JSON.stringify({
+      id: packId,
+      inheritsFrom: baseVersion || '1.20.1',
+      type: 'release',
+      hydraModpack: { name: packName, loader: packLoader, base: baseVersion || '1.20.1', projectId: String(projectId || ''), kind }
+    }, null, 2))
+
+    // Registrar en "Mis modpacks"
+    const packs = loadModpacks()
+    const rec = { id: packId, name: packName, base: baseVersion, loader: packLoader, kind, versionId: packId, installedAt: Date.now(), mods: installed }
+    const ix = packs.findIndex(p => p.id === packId)
+    if (ix >= 0) packs[ix] = rec
+    else packs.push(rec)
+    saveModpacks(packs)
+
+    send(`  Modpack instalado como version: ${packId} (${installed} mods${skipped ? `, ${skipped} omitidos` : ''})`)
+    return { ok: true, kind, packName, packId, installed, skipped, baseVersion, loader: packLoader }
+  } finally {
+    try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
+  }
+}
+
+// --- IMPORTAR MODPACK DESDE UN ARCHIVO LOCAL DEL JUGADOR ---
+// Detecta automaticamente el tipo: .mrpack (Modrinth), .zip con manifest.json
+// (CurseForge) o un zip que solo trae mods (.jar) — en ese caso CREA la instancia
+// analizando el loader real de cada jar (fabric/forge/neoforge) y la MC pedida.
+ipcMain.handle('import-modpack', async (_e, opts: any) => {
+  const send = (m: string) => { console.log('[import]', m); win?.webContents.send('launch-log', m) }
+  const { gameVersion, loader } = opts || {}
+  try {
+    const openOpts: any = {
+      title: 'Importar modpack',
+      properties: ['openFile'],
+      filters: [{ name: 'Modpacks (mrpack / zip)', extensions: ['mrpack', 'zip'] }]
+    }
+    const w = win && !win.isDestroyed() ? win : undefined
+    const dlg = w ? await dialog.showOpenDialog(w, openOpts) : await dialog.showOpenDialog(openOpts)
+    focusRenderer() // el dialogo nativo roba el foco al renderer
+    const file = dlg.filePaths?.[0]
+    if (!file || dlg.canceled) return { ok: false, canceled: true }
+
+    const AdmZip = (await import('adm-zip')).default
+    let zip: any
+    try { zip = new AdmZip(file) } catch { return { ok: false, error: 'No se pudo leer el archivo (¿zip corrupto?)' } }
+    const entries = zip.getEntries()
+      .map((e: any) => String(e.entryName).replace(/\\/g, '/'))
+      .filter((n: string) => !n.startsWith('__MACOSX') && !n.startsWith('.') && !n.split('/').includes('..'))
+    const rootHas = (re: RegExp) => entries.some((n: string) => !n.includes('/') && re.test(n))
+    const isCfManifest = () => {
+      try {
+        const e = zip.getEntry('manifest.json')
+        if (!e) return false
+        const mf = JSON.parse(e.getData().toString('utf8'))
+        return mf?.manifestType === 'minecraftModpack' || (Array.isArray(mf?.files) && typeof mf?.minecraftVersion === 'string')
+      } catch { return false }
+    }
+    const fileName = path.basename(file)
+    send(`Importando ${fileName}...`)
+
+    // 1) Modrinth (.mrpack)  2) CurseForge (.zip con manifest.json)
+    if (rootHas(/modrinth\.index\.json$/i) || (rootHas(/^manifest\.json$/i) && isCfManifest())) {
+      const cfHeaders = { 'x-api-key': await getCurseForgeKey(), Accept: 'application/json' }
+      const r = await installModpackFromZip(fs.readFileSync(file), '', fileName, cfHeaders, send)
+      if (r?.ok) send(`  ✓ ${r.packName}: pack de ${r.kind === 'modrinth' ? 'Modrinth' : 'CurseForge'} importado como versión ${r.packId}`)
+      return r
+    }
+
+    // 3) zip que solo trae mods → crea la instancia analizando cada jar
+    const jarEntries = entries.filter((n: string) => /\.jar$/i.test(n))
+    if (!jarEntries.length) {
+      return { ok: false, error: 'El archivo no es un modpack válido: no tiene modrinth.index.json (Modrinth), manifest.json (CurseForge) ni mods (.jar).' }
+    }
+    // Analiza el loader REAL de cada jar (lee solo el indice del zip, sin descomprimir)
+    const votes: Record<string, number> = { fabric: 0, forge: 0, neoforge: 0 }
+    for (const n of jarEntries.slice(0, 120)) {
+      try {
+        const inner = new AdmZip(zip.getEntry(n).getData())
+        const names = inner.getEntries().map((e: any) => String(e.entryName))
+        if (names.includes('fabric.mod.json')) votes.fabric++
+        else if (names.includes('META-INF/neoforge.mods.toml')) votes.neoforge++
+        else if (names.includes('META-INF/mods.toml') || names.includes('mods.toml') || names.includes('mcmod.info')) votes.forge++
+      } catch {}
+    }
+    const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1])
+    const detected = ranked[0][1] > 0 ? ranked[0][0] : null
+    const packLoader = detected || (loader && loader !== 'vanilla' ? loader : 'vanilla')
+    const baseVersion = String(gameVersion || '1.21.1')
+    const packName = fileName.replace(/\.(zip|mrpack)$/i, '')
+    const sanitizeId = (s: string) => s.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'modpack'
+    let packId = sanitizeId(packName)
+    if (fs.existsSync(path.join(ROOT, 'versions', packId))) packId = `${packId}-${Date.now().toString(36)}`
+    const packDir = path.join(ROOT, 'versions', packId)
+    const packModsDir = path.join(packDir, 'mods')
+    fs.mkdirSync(packModsDir, { recursive: true })
+
+    // .jar → instancia/mods/ ; config, options, saves, resourcepacks, shaderpacks → instancia/
+    const keepRoot = /^(?:config|resourcepacks|shaderpacks|saves)\/|^(?:options\.txt|optionsof\.txt|servers\.dat)$/i
+    let copied = 0, extra = 0
+    for (const e of zip.getEntries()) {
+      const n = String(e.entryName).replace(/\\/g, '/')
+      if (e.isDirectory || n.startsWith('__MACOSX') || n.startsWith('.') || n.split('/').includes('..')) continue
+      const base = path.basename(n)
+      if (/\.jar$/i.test(base)) {
+        try { fs.writeFileSync(path.join(packModsDir, base), e.getData()); copied++ } catch {}
+      } else if (keepRoot.test(n)) {
+        try {
+          const dest = path.join(packDir, n)
+          fs.mkdirSync(path.dirname(dest), { recursive: true })
+          fs.writeFileSync(dest, e.getData()); extra++
+        } catch {}
+      }
+    }
+
+    // JSON de version: aparece en Instaladas, se etiqueta con su loader y se puede lanzar
+    fs.writeFileSync(path.join(packDir, packId + '.json'), JSON.stringify({
+      id: packId,
+      inheritsFrom: baseVersion,
+      type: 'release',
+      hydraModpack: { name: packName, loader: packLoader, base: baseVersion, projectId: '', kind: 'zip', imported: true }
+    }, null, 2))
+
+    const packs = loadModpacks()
+    const rec = { id: packId, name: packName, base: baseVersion, loader: packLoader, kind: 'zip', versionId: packId, installedAt: Date.now(), mods: copied }
+    const ix = packs.findIndex(p => p.id === packId)
+    if (ix >= 0) packs[ix] = rec
+    else packs.push(rec)
+    saveModpacks(packs)
+
+    send(`  ✓ Zip de mods importado: ${packName} → versión ${packId} (${copied} mods${extra ? `, ${extra} archivos de config` : ''}, loader ${packLoader}${detected ? ' (detectado de los jars)' : ' (usado el seleccionado)'})`)
+    return { ok: true, kind: 'zip', packName, packId, installed: copied, skipped: 0, baseVersion, loader: packLoader, detected: !!detected }
+  } catch (e: any) {
+    const msg = String(e?.response?.data?.message || e?.message || e)
+    return { ok: false, error: msg }
   }
 })
 
@@ -1797,104 +2075,7 @@ ipcMain.handle('install-content', async (_e, opts: any) => {
     const buf = Buffer.from(res.data)
 
     if (type === 'modpack') {
-      const AdmZip = (await import('adm-zip')).default
-      const zip = new AdmZip(buf)
-      const tempDir = path.join(HYDRA_DIR, 'tmp-pack-' + Date.now())
-      fs.mkdirSync(tempDir, { recursive: true })
-      zip.extractAllTo(tempDir, true)
-      let manifest: any = null
-      let packName = fileName.replace(/\.(mrpack|zip)$/i, '')
-      let baseVersion = ''
-      let packLoader = 'vanilla'
-      let installed = 0
-      let skipped = 0
-      const manifestPath = path.join(tempDir, 'modrinth.index.json')
-      const cfManifestPath = path.join(tempDir, 'manifest.json')
-      if (fs.existsSync(manifestPath)) {
-        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
-        packName = manifest?.name || packName
-        baseVersion = String(manifest?.dependencies?.minecraft || '')
-        if (manifest?.dependencies?.['fabric-loader']) packLoader = 'fabric'
-        else if (manifest?.dependencies?.neoforge) packLoader = 'neoforge'
-        else if (manifest?.dependencies?.forge) packLoader = 'forge'
-      } else if (fs.existsSync(cfManifestPath)) {
-        manifest = JSON.parse(fs.readFileSync(cfManifestPath, 'utf-8'))
-        packName = manifest?.name || packName
-        baseVersion = String(manifest?.minecraftVersion || '')
-        const ml = (manifest?.modLoaders || []).find((m: any) => m.primary) || manifest?.modLoaders?.[0]
-        const mlId = String(ml?.id || '')
-        if (mlId.startsWith('fabric')) packLoader = 'fabric'
-        else if (mlId.startsWith('neoforge')) packLoader = 'neoforge'
-        else if (mlId.startsWith('forge')) packLoader = 'forge'
-      } else {
-        try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
-        return { ok: false, error: 'El archivo no tiene manifest (no es un modpack valido)' }
-      }
-
-      // Crear carpeta de version/<id> para que aparezca en Instaladas y se pueda lanzar
-      const sanitizeId = (s: string) => s.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'modpack'
-      let packId = sanitizeId(packName)
-      if (fs.existsSync(path.join(ROOT, 'versions', packId))) packId = `${packId}-${Date.now().toString(36)}`
-      const packDir = path.join(ROOT, 'versions', packId)
-      const packModsDir = path.join(packDir, 'mods')
-      fs.mkdirSync(packModsDir, { recursive: true })
-      send(`  Modpack ${packName} → version ${packId} (base ${baseVersion || '?'}, ${packLoader})`)
-
-      const files = manifest?.files || []
-      send(`  ${files.length} archivos...`)
-      if (fs.existsSync(manifestPath)) {
-        // Modrinth (.mrpack): URLs directas en downloads[]
-        for (const f of files) {
-          try {
-            const url = Array.isArray(f.downloads) && f.downloads.length ? f.downloads[0] : ''
-            if (!url) { skipped++; continue }
-            const destPath = path.join(packModsDir, path.basename(f.path || ''))
-            const fr = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000 })
-            fs.writeFileSync(destPath, Buffer.from(fr.data))
-            installed++
-            send(`    OK ${path.basename(f.path || '')}`)
-          } catch { skipped++ }
-        }
-      } else {
-        // CurseForge: projectID/fileID vía API
-        for (const f of files) {
-          try {
-            if (!cfHeaders['x-api-key']) { skipped++; continue }
-            const { data: dl } = await axios.get(`https://api.curseforge.com/v1/mods/${f.projectID}/files/${f.fileID}/download-url`, { headers: cfHeaders, timeout: 15000 })
-            const fr = await axios.get(dl.data, { responseType: 'arraybuffer', timeout: 120000 })
-            const m = String(dl.data).split('?')[0].split('/').pop()
-            fs.writeFileSync(path.join(packModsDir, decodeURIComponent(m || `${f.projectID}.jar`)), Buffer.from(fr.data))
-            installed++
-          } catch { skipped++ }
-        }
-      }
-
-      // Overrides (config, resourcepacks, options...) → dentro de la instancia del pack (NO al .minecraft global)
-      const overrides = path.join(tempDir, 'overrides')
-      if (fs.existsSync(overrides)) {
-        try { fs.cpSync(overrides, packDir, { recursive: true }) } catch {}
-        send('  overrides aplicados a la instancia del pack')
-      }
-
-      // JSON de version: el pack aparece en Instaladas y el launch lo detecta
-      fs.writeFileSync(path.join(packDir, packId + '.json'), JSON.stringify({
-        id: packId,
-        inheritsFrom: baseVersion || '1.20.1',
-        type: 'release',
-        hydraModpack: { name: packName, loader: packLoader, base: baseVersion || '1.20.1', projectId: String(id) }
-      }, null, 2))
-
-      // Registrar en "Mis modpacks"
-      const packs = loadModpacks()
-      const rec = { id: packId, name: packName, base: baseVersion, loader: packLoader, versionId: packId, installedAt: Date.now(), mods: installed }
-      const ix = packs.findIndex(p => p.id === packId)
-      if (ix >= 0) packs[ix] = rec
-      else packs.push(rec)
-      saveModpacks(packs)
-
-      try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch {}
-      send(`  Modpack instalado como version: ${packId} (${installed} mods${skipped ? `, ${skipped} omitidos` : ''})`)
-      return { ok: true, packName, packId, installed, skipped, baseVersion, loader: packLoader }
+      return await installModpackFromZip(buf, String(id), fileName, cfHeaders, send)
     }
 
     const dest = path.join(contentDir, path.basename(fileName))
@@ -2329,44 +2510,123 @@ function diagnoseLaunchFailure(out: string, code: number | null, javaExe: string
   }
 }
 
+// --- MODALES IN-APP (reemplazan a los dialogos nativos de Windows) ---
+// Los dialogos nativos (dialog.showMessageBox / showErrorBox / alert del renderer)
+// robaban el foco al cerrarse y la barra de búsqueda de TODAS las secciones quedaba
+// inutilizable. Ahora todo se muestra dentro del propio launcher mediante el evento
+// 'hydra-modal'; el renderer responde con 'hydra-modal-reply'.
+const modalPending = new Map<number, (response: number) => void>()
+let modalSeq = 0
+
+function focusRenderer(): void {
+  try {
+    if (!win || win.isDestroyed()) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+    win.webContents.focus() // foco de TECLADO al renderer (win.focus() no siempre lo devuelve en Windows)
+  } catch {}
+}
+
+function showModalToRenderer(payload: any): Promise<number> {
+  return new Promise((resolve) => {
+    try {
+      if (!win || win.isDestroyed()) { resolve(-1); return }
+      const id = ++modalSeq
+      modalPending.set(id, resolve)
+      focusRenderer()
+      win.webContents.send('hydra-modal', { ...payload, id })
+      // red de seguridad: si el renderer nunca responde, no dejar la promesa colgada
+      setTimeout(() => { if (modalPending.delete(id)) resolve(-1) }, 300000)
+    } catch { resolve(-1) }
+  })
+}
+
+ipcMain.handle('hydra-modal-reply', (_e, id: any, response: any) => {
+  const r = modalPending.get(Number(id))
+  if (r) { modalPending.delete(Number(id)); r(Number(response ?? 0)) }
+  focusRenderer() // al cerrar el modal, devolver el foco de teclado al renderer
+  return true
+})
+
+// Deduce el MOD culpable de una salida de consola o crash report (mejor esfuerzo).
+function findCulpritMod(out: string): string | null {
+  if (!out) return null
+  const t = String(out).slice(0, 300000)
+  // 1) ruta de un jar dentro de mods/ citada en el error
+  const jar = t.match(/(?:^|[\s"'=(])mods\/([A-Za-z0-9._+ -]+?\.jar)/i)
+  if (jar) return jar[1].trim()
+  // 2) "Mod File: mods/x.jar" (crash reports de Forge/NeoForge)
+  const mf = t.match(/Mod File:\s*([^\r\n]+)/i)
+  if (mf) return path.basename(mf[1].trim())
+  // 3) mod citado en la excepcion (Fabric/Quilt/Forge)
+  const named = t.match(/(?:required mod|incompatible mod|failed to load(?: the)? mod|mod ["'])([a-z0-9_.-]{3,40})/i)
+    || t.match(/\bMod ([a-z0-9_.-]{3,40}) (?:requires|crashed|cannot)/i)
+  if (named?.[1]) return named[1]
+  // 4) ultimo "Caused by:" que mencione un jar
+  const caused = t.match(/Caused by:[^\r\n]*([A-Za-z0-9._-]+\.jar)/gi)
+  if (caused?.length) {
+    const m = caused[caused.length - 1].match(/([A-Za-z0-9._-]+\.jar)/i)
+    if (m) return m[1]
+  }
+  return null
+}
+
+// Modal compacto cuando Minecraft cierra con error: explica QUÉ pasó, identifica al
+// mod culpable si se puede, y da soluciones — sin vomitar la consola entera.
 let launchDialogOpen = false
 function showLaunchFailureDialog(opts: any, outText: string, code: number | null, javaExe: string, mcVer: string, reportFile: string | null) {
   if (launchDialogOpen) return
   launchDialogOpen = true
   const d = diagnoseLaunchFailure(outText, code, javaExe, mcVer)
-  const lastLines = outText.split('\n').filter(Boolean).slice(-15).join('\n')
+  const culprit = findCulpritMod(outText)
+  const lastLines = outText.split('\n').filter(Boolean).slice(-10).join('\n')
   const report = [
     `Hydra ${app.getVersion()} | MC ${mcVer || opts?.version || '?'} | loader ${opts?.loader || 'vanilla'} | exit ${code ?? '?'}`,
     `Java: ${javaExe || opts?.javaPath || 'auto'} | RAM: ${opts?.ram?.max || '4G'}`,
-    `Problema: ${d.problema}`,
+    `Problema: ${d.titulo} — ${d.problema}`,
+    culprit ? `Mod culpable (sospechoso): ${culprit}` : '',
     '',
     lastLines
-  ].join('\n')
-  const sols = d.soluciones.map((s, i) => `${i + 1}. ${s}`).join('\n')
-  const boxOpts: any = {
-    type: 'error',
-    buttons: ['Copiar diagnóstico', 'Cerrar'],
-    defaultId: 1,
-    cancelId: 1,
-    title: 'Hydra Launcher — Minecraft no pudo abrir',
-    message: d.problema,
-    detail: `${d.titulo}\n\nPosibles soluciones:\n${sols}\n\n${reportFile ? `Informe guardado: ${reportFile}\n` : ''}Últimas líneas de la consola:\n${lastLines || '(sin salida)'}\n\nSi nada funciona, copia el diagnóstico y pégalo donde te pidan ayuda.`,
-    noLink: true
-  }
-  const w = win && !win.isDestroyed() ? win : undefined
-  const p = w ? dialog.showMessageBox(w, boxOpts) : dialog.showMessageBox(boxOpts)
-  p.then(r => {
-    launchDialogOpen = false
-    if (r.response === 0) {
-      try {
-        clipboard.writeText(report)
-        const info: any = { type: 'info', buttons: ['OK'], title: 'Hydra Launcher', message: 'Diagnóstico copiado', detail: 'Pégalo donde te lo pidan (Discord, foro, soporte).', noLink: true }
-        const w2 = win && !win.isDestroyed() ? win : undefined
-        if (w2) dialog.showMessageBox(w2, info); else dialog.showMessageBox(info)
-      } catch {}
-    }
-  }).catch(() => { launchDialogOpen = false })
+  ].filter(Boolean).join('\n')
+  const sols = [...d.soluciones]
+  if (culprit) sols.unshift(`Prueba a quitar temporalmente "${culprit}" de la carpeta mods y vuelve a lanzar: si el juego arranca, ese mod es el culpable.`)
+  // modal DENTRO del launcher (el dialogo nativo robaba el foco al renderer)
+  showModalToRenderer({
+    kind: 'crash',
+    titulo: d.titulo,
+    problema: d.problema,
+    soluciones: sols,
+    culprit,
+    console: lastLines,
+    report,
+    reportFile: reportFile || '',
+    meta: `Hydra ${app.getVersion()} • MC ${mcVer || opts?.version || '?'} • ${opts?.loader || 'vanilla'} • código ${code ?? '?'}`
+  }).finally(() => { launchDialogOpen = false })
 }
+
+// Informe de crash guardado → diagnostico legible (para el banner de avisos)
+ipcMain.handle('explain-crash', async (_e, file: any) => {
+  try {
+    const real = path.resolve(String(file || ''))
+    if (!real.startsWith(path.resolve(CRASH_DIR))) return { ok: false, error: 'Ruta de informe inválida' }
+    const r = JSON.parse(fs.readFileSync(real, 'utf-8'))
+    const out = `${r?.error || ''}\n${r?.stack || ''}`
+    const d = diagnoseLaunchFailure(out, null, r?.launch?.javaPath || '', r?.launch?.version || '')
+    const culprit = findCulpritMod(out)
+    const sols = [...d.soluciones]
+    if (culprit) sols.unshift(`Prueba a quitar temporalmente "${culprit}" de la carpeta mods: si el juego arranca sin él, ese mod es el culpable.`)
+    return {
+      ok: true,
+      titulo: d.titulo,
+      problema: d.problema,
+      soluciones: sols,
+      culprit,
+      meta: `MC ${r?.launch?.version || '?'} • ${r?.launch?.loader || 'vanilla'} • ${r?.when ? new Date(r.when).toLocaleString() : ''}`,
+      report: JSON.stringify(r, null, 2).slice(0, 12000)
+    }
+  } catch (e: any) { return { ok: false, error: String(e?.message || e) } }
+})
 
 ipcMain.handle('get-pending-crashes', () => {
   try {

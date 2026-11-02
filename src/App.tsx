@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { useStore } from './store/launcherStore'
 import { initUiSounds, setUiSoundPrefs } from './sound'
+import GlobalModal, { openModal, uiAlert } from './ui/GlobalModal'
 
 const Home = lazy(() => import('./pages/Home'))
 const Versions = lazy(() => import('./pages/Versions'))
@@ -92,6 +93,11 @@ export default function App(){
     document.documentElement.dataset.theme = config?.theme && config.theme!=='hydra' ? config.theme : ''
   },[config?.theme])
 
+  // modo ligero (Ajustes → Modo ligero): quita blur/animaciones caras para PCs modestas
+  useEffect(()=>{
+    document.body.classList.toggle('low-fx', !!config?.lowFx)
+  },[config?.lowFx])
+
   // sonidos de UI: se inicializan una vez y se re-sincronizan con la config guardada
   useEffect(()=>{ initUiSounds() },[])
   useEffect(()=>{ setUiSoundPrefs(config?.uiSounds !== false, config?.uiSoundsVolume ?? 0.35) },[config?.uiSounds, config?.uiSoundsVolume])
@@ -123,11 +129,12 @@ export default function App(){
         <AnimatedBg/>
         <StarField/>
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full blur-[90px] opacity-20 bg-blob-1"/>
-          <div className="absolute -bottom-40 -left-40 w-[620px] h-[620px] rounded-full blur-[90px] opacity-15 bg-blob-2"/>
+          <div className="absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full blur-[90px] opacity-20 bg-blob-1 fx-blob"/>
+          <div className="absolute -bottom-40 -left-40 w-[620px] h-[620px] rounded-full blur-[90px] opacity-15 bg-blob-2 fx-blob"/>
         </div>
       </div>
       {showSetup && <Suspense fallback={null}><Setup onDone={()=>setShowSetup(false)}/></Suspense>}
+      <GlobalModal/>
       <div className="h-8 flex items-center justify-between px-3 bg-[#0c0c11] border-b border-white/[0.06] shrink-0 relative z-10" style={{WebkitAppRegion:'drag'} as any}>
         <div className="flex items-center gap-2.5">
           <img src="hydra-logo.png" className="w-6 h-6 rounded-md object-contain shadow-[0_0_14px_rgba(124,58,237,0.5)]" alt=""/>
@@ -215,6 +222,7 @@ function AnimatedBg(){
 
 function StarField(){
   const ref = useRef<HTMLCanvasElement>(null)
+  const lowFx = useStore(s=>!!s.config?.lowFx)
   useEffect(()=>{
     const cv = ref.current; if(!cv) return
     const cx = cv.getContext('2d'); if(!cx) return
@@ -229,21 +237,24 @@ function StarField(){
       r: Math.random()*1.8+0.4, s: Math.random()*1.7+0.55,
       c: colors[i%3]
     }))
-    const anim = ()=>{
+    const paint = (move:boolean)=>{
       cx.clearRect(0,0,W(),H())
       for(const p of P){
-        p.y -= p.s
-        if(p.y < 0){ p.y = H(); p.x = Math.random()*W() }
+        if(move){ p.y -= p.s; if(p.y < 0){ p.y = H(); p.x = Math.random()*W() } }
         cx.globalAlpha = 0.7
         cx.fillStyle = p.c
         cx.beginPath(); cx.arc(p.x,p.y,p.r,0,Math.PI*2); cx.fill()
       }
       cx.globalAlpha = 1
-      raf = requestAnimationFrame(anim)
     }
-    anim()
+    if (lowFx) {
+      paint(false) // modo ligero: estaticas, sin bucle requestAnimationFrame
+    } else {
+      const anim = ()=>{ paint(true); raf = requestAnimationFrame(anim) }
+      anim()
+    }
     return ()=>{ cancelAnimationFrame(raf); window.removeEventListener('resize', rs) }
-  },[])
+  },[lowFx])
   return <canvas ref={ref} className="absolute inset-0 w-full h-full pointer-events-none"/>
 }
 
@@ -311,23 +322,28 @@ function SaveErrorBanner(){
 
 function CrashBanner(){
   const [crashes,setCrashes]=useState<any[]>([])
-  const [copied,setCopied]=useState(false)
+  const [explaining,setExplaining]=useState(false)
   useEffect(()=>{
     window.api?.getPendingCrashes?.().then((r:any)=> setCrashes(r?.crashes||[])).catch(()=>{})
   },[])
   if(!crashes.length) return null
-  const copyReport = async ()=>{
-    const r = await window.api?.readCrash?.(crashes[0].file)
-    if(r?.ok){ navigator.clipboard?.writeText(r.content); setCopied(true); setTimeout(()=>setCopied(false),2000) }
+  // explica el fallo en un modal compacto (titulo + que paso + soluciones + mod culpable)
+  const explain = async ()=>{
+    if (explaining) return
+    setExplaining(true)
+    try {
+      const r = await window.api?.explainCrash?.(crashes[0].file)
+      if (r?.ok) openModal({ kind:'crash', titulo:r.titulo, problema:r.problema, soluciones:r.soluciones, culprit:r.culprit, meta:r.meta, report:r.report })
+      else uiAlert(r?.error || 'No se pudo leer el informe del crash')
+    } finally { setExplaining(false) }
   }
   const dismiss = ()=>{ window.api?.dismissCrashes?.(); setCrashes([]) }
   return (
     <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 bg-red-600/15 border-b border-red-500/25 relative z-10">
-      <span className="text-sm font-bold text-red-300">⚠ Se detectó un fallo la última vez</span>
-      <span className="text-xs text-white/55">{crashes.length} informe{crashes.length>1?'s':''} guardado{crashes.length>1?'s':''} en tu PC (sin datos privados).</span>
+      <span className="text-sm font-bold text-red-300">⚠ El juego cerró con error la última vez</span>
+      <span className="text-xs text-white/55">{crashes.length} informe{crashes.length>1?'s':''} guardado{crashes.length>1?'s':''} en tu PC.</span>
       <div className="ml-auto flex items-center gap-2">
-        <button onClick={copyReport} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 font-semibold">{copied?'✓ Copiado':'Copiar informe'}</button>
-        <button onClick={()=>window.api?.shellOpenPath?.(crashes[0].file)} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 font-semibold">Abrir</button>
+        <button onClick={explain} disabled={explaining} className="text-xs px-3 py-1.5 rounded-lg bg-white/15 border border-white/10 font-semibold disabled:opacity-50">{explaining?'Analizando…':'💡 ¿Qué pasó?'}</button>
         <button onClick={dismiss} className="text-xs text-white/50 hover:text-white">Entendido</button>
       </div>
     </div>

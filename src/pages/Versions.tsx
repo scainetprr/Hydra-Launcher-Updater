@@ -31,7 +31,7 @@ export default function Versions(){
 
   const delVersion = async (id:string, e:React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm(`¿Eliminar la versión "${id}" y todos sus archivos del disco?\n(Es seguro: se puede volver a descargar)`)) return
+    if (!await confirm(`¿Eliminar la versión "${id}" y todos sus archivos del disco?\n(Es seguro: se puede volver a descargar)`)) return
     setBusyDel(id)
     const res = await window.api?.deleteVersion?.(id)
     setBusyDel('')

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store/launcherStore'
+import { uiAlert } from '../ui/GlobalModal'
 
 type Item = {
   source: string; id: string; title: string; author: string; description: string;
@@ -151,6 +152,7 @@ function sanitizeHtml(html: string): string {
 export default function Mods(){
   const selectedVersion = useStore(s=>s.selectedVersion)
   const loader = useStore(s=>s.loader)
+  const latest = useStore(s=>s.latest)
   const set = useStore(s=>s.set)
   const addLog = useStore(s=>s.addLog)
   const config = useStore(s=>s.config)
@@ -165,10 +167,13 @@ export default function Mods(){
   const [installing,setInstalling]=useState<Record<string,boolean>>({})
   const [results,setResults]=useState<Record<string,string>>({})
   const [needsKey,setNeedsKey]=useState(false)
+  const [showKey,setShowKey]=useState(false)
   const [cfKeyInput,setCfKeyInput]=useState(config.curseforgeKey||'')
   const [keySaved,setKeySaved]=useState(false)
   const [packs,setPacks]=useState<any[]>([])
   const [mods,setMods]=useState<string[]>([])
+  const [modsInfo,setModsInfo]=useState<any>(null)
+  const [importing,setImporting]=useState(false)
   const [newPackName,setNewPackName]=useState('')
   const [detailItem,setDetailItem]=useState<Item|null>(null)
   const [detail,setDetail]=useState<any>(null)
@@ -182,11 +187,23 @@ export default function Mods(){
 
   const type = tab==='packs' ? 'modpack' : 'mod'
 
+  // Version REAL de Minecraft para los filtros: los ids de instancias instaladas
+  // (neoforge-21.1.265, fabric-loader-..., packs) no son versiones de MC — filtrar
+  // con ellos devolvia 0 resultados y el catalogo salia vacio sin hacer busqueda.
+  const resolveMc = (v: string): string | undefined => {
+    if (!v) return undefined
+    const lead = v.match(/^(\d+(?:\.\d+)+)/)
+    if (lead) return lead[1]
+    const hit = (installedFull || []).find((x: any) => x.id === v)
+    const b = hit?.base ? String(hit.base).match(/^(\d+(?:\.\d+)+)/) : null
+    return b ? b[1] : undefined
+  }
+
   const search = async (reset=true) => {
     const off = reset ? 0 : offset
     setLoading(true); setError(''); if(reset) setItems([])
     try {
-      const res = await window.api?.browseContent?.({ source, query, gameVersion: selectedVersion, loader, type, limit: 20, offset: off, index: sort })
+      const res = await window.api?.browseContent?.({ source, query, gameVersion: resolveMc(selectedVersion), loader, type, limit: 20, offset: off, index: sort })
       if (!res?.ok) {
         setError(res?.error || 'Error de busqueda')
         setNeedsKey(!!res?.needsKey)
@@ -202,10 +219,10 @@ export default function Mods(){
   const refreshInstalledFull = () => {
     window.api?.getInstalledVersionsFull?.().then((l:any[])=>setInstalledFull(l||[])).catch(()=>{})
   }
-  useEffect(()=>{ setOffset(0); search(true) },[source, selectedVersion, loader, type, sort])
+  useEffect(()=>{ setOffset(0); search(true) },[source, selectedVersion, loader, type, sort, installedFull])
   useEffect(()=>{
     window.api?.getModpacks?.().then((p:any[])=>setPacks(p||[])).catch(()=>setPacks([]))
-    window.api?.getModsInfo?.().then((m:any)=>setMods(m?.files||[])).catch(()=>setMods([]))
+    window.api?.getModsInfo?.().then((m:any)=>{ setMods(m?.files||[]); setModsInfo(m||null) }).catch(()=>setMods([]))
     refreshInstalledFull()
   },[])
   useEffect(()=>{ setCfKeyInput(config.curseforgeKey||'') },[config.curseforgeKey])
@@ -218,7 +235,7 @@ export default function Mods(){
     addLog(`Descargando ${it.title}${v?` ${v.label}`:''} (${it.source})...`)
     const res = await window.api?.installContent?.({
       source: it.source, id: it.id, type: itType,
-      gameVersion: ctx?.gameVersion !== undefined ? ctx.gameVersion : (v ? undefined : selectedVersion),
+      gameVersion: ctx?.gameVersion !== undefined ? ctx.gameVersion : (v ? undefined : resolveMc(selectedVersion)),
       loader: v ? undefined : loader,
       versionId: v?.id, fileId: v?.id
     })
@@ -276,16 +293,41 @@ export default function Mods(){
     addLog(`API key de CurseForge guardada (${key.slice(0,8)}...)`)
     setKeySaved(true); setTimeout(()=>setKeySaved(false), 4000)
     search(true)
+    setShowKey(false)
   }
 
   const createPack = async () => {
     if (!newPackName.trim()) return
-    const pack = { id:'pack_'+Date.now(), name:newPackName.trim(), mods, created:Date.now(), version:'1.0' }
+    const pack = { id:'pack_'+Date.now(), name:newPackName.trim(), mods, created:Date.now(), version:'1.0', loader: modsInfo?.loader || '' }
     const res = await window.api.saveModpack?.(pack)
     if (res?.ok) { setPacks([...packs, pack]); setNewPackName(''); addLog(`Modpack creado: ${pack.name} (${mods.length} mods)`) }
   }
+  // Importa un archivo local: el launcher DETECTA si es .mrpack (Modrinth), .zip de
+  // CurseForge (manifest.json) o un zip que solo trae mods — en ese caso analiza el
+  // loader real de cada jar (fabric/forge/neoforge) y crea la instancia con ellos.
+  const importPack = async () => {
+    if (importing) return
+    setImporting(true)
+    try {
+      const base = resolveMc(selectedVersion) || latest?.release || undefined
+      const res = await window.api?.importModpack?.({ gameVersion: base, loader })
+      if (res?.canceled) return
+      if (res?.ok) {
+        const origin = res.kind==='modrinth' ? 'Modrinth' : res.kind==='curseforge' ? 'CurseForge' : 'zip de mods'
+        const msg = `Modpack importado de ${origin}: ${res.packName} → versión ${res.packId} (${res.installed} mods, loader ${res.loader}${res.detected ? ' (analizado de los jars)' : ''})`
+        addLog(`✓ ${msg}`)
+        setTab('mine')
+        const p = await window.api?.getModpacks?.(); setPacks(p||[])
+        refreshInstalledFull()
+        window.api?.getInstalledVersionsFull?.().then((l:any[])=> set({installedVersions:l||[]})).catch(()=>{})
+      } else {
+        addLog(`✗ Importar modpack: ${res?.error}`)
+        uiAlert(res?.error || 'No se pudo importar el archivo.', { titulo:'Importar modpack' })
+      }
+    } finally { setImporting(false) }
+  }
   const deletePack = async (id:string) => {
-    if (!confirm('¿Eliminar este modpack?')) return
+    if (!await confirm('¿Eliminar este modpack?')) return
     const pack = packs.find(p=>p.id===id)
     const res = await window.api.deleteModpack?.(id)
     if (res?.ok) {
@@ -331,6 +373,11 @@ export default function Mods(){
             <button key={id} onClick={()=>setTab(id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${tab===id?'bg-white text-black':'text-white/60 hover:text-white'}`}>{label}</button>
           ))}
         </div>
+        <button onClick={importPack} disabled={importing}
+          className="bg-white text-black font-bold px-4 py-2 rounded-xl text-xs disabled:opacity-50"
+          title="Detecta un .mrpack de Modrinth, un .zip de CurseForge o un zip con tus mods y crea la versión con todo instalado y etiquetada con su loader">
+          {importing ? 'Importando…' : '📥 Importar modpack'}
+        </button>
       </div>
 
       {tab!=='mine' && !detailItem && (
@@ -351,10 +398,11 @@ export default function Mods(){
               <option value="recent">Recientes</option>
             </select>
             <button onClick={()=>search(true)} disabled={loading} className="bg-white text-black font-bold px-4 py-2.5 rounded-xl text-sm disabled:opacity-50">{loading?'...':'Buscar'}</button>
+            <button onClick={()=>setShowKey(v=>!v)} title="API key propia de CurseForge (opcional — Hydra funciona con una compartida)" className="text-sm px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 font-bold hover:bg-white/[0.16]">🔑</button>
           </div>
-          {needsKey && source==='curseforge' && (
+          {(needsKey || showKey) && source==='curseforge' && (
             <div className="flex flex-wrap items-center gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl p-3">
-              <div className="text-xs text-amber-200 flex-1 min-w-[220px]">CurseForge necesita una API key gratis: consiguela en <b>console.curseforge.com</b> (My Account → API Keys) y peguela aqui.</div>
+              <div className="text-xs text-amber-200 flex-1 min-w-[220px]">CurseForge funciona con la <b>API key compartida de Hydra</b> — no tienes que hacer nada y <b>no compromete tu cuenta</b>. Si tienes tu propia key, péguela aquí para usarla en su lugar (opcional).</div>
               <input value={cfKeyInput} onChange={e=>setCfKeyInput(e.target.value)} placeholder="$2a$10$..." className="bg-[#14141c] border border-white/10 rounded-lg px-3 py-2 text-xs w-[260px]"/>
               <button onClick={saveKey} className={`font-bold px-3 py-2 rounded-lg text-xs ${keySaved?'bg-emerald-500 text-white':'bg-white text-black'}`}>{keySaved?'✓ Guardada':'Guardar'}</button>
             </div>
@@ -368,7 +416,7 @@ export default function Mods(){
           <button onClick={closeDetail} className="text-sm font-bold text-white/60 hover:text-white">← Volver al catálogo</button>
           {needsKey && detailItem.source==='curseforge' && (
             <div className="flex flex-wrap items-center gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl p-3">
-              <div className="text-xs text-amber-200 flex-1 min-w-[220px]">CurseForge necesita una API key gratis: consiguela en <b>console.curseforge.com</b> (My Account → API Keys) y peguela aqui.</div>
+              <div className="text-xs text-amber-200 flex-1 min-w-[220px]">CurseForge funciona con la <b>API key compartida de Hydra</b> — no tienes que hacer nada y <b>no compromete tu cuenta</b>. Si tienes tu propia key, péguela aquí para usarla en su lugar (opcional).</div>
               <input value={cfKeyInput} onChange={e=>setCfKeyInput(e.target.value)} placeholder="$2a$10$..." className="bg-[#14141c] border border-white/10 rounded-lg px-3 py-2 text-xs w-[260px]"/>
               <button onClick={saveKey} className={`font-bold px-3 py-2 rounded-lg text-xs ${keySaved?'bg-emerald-500 text-white':'bg-white text-black'}`}>{keySaved?'✓ Guardada':'Guardar'}</button>
             </div>
@@ -534,10 +582,16 @@ export default function Mods(){
       {tab!=='mine' && !detailItem && (
         items.length===0 && !loading ? (
           <div className="glass rounded-2xl p-10 text-center text-white/45">
-            {error ? 'Sin resultados — ajusta filtros o la API key.' : 'Escribe algo y pulsa Buscar para explorar el catalogo.'}
+            {error ? `Sin resultados — ${error}` : `Sin resultados con estos filtros${query.trim()?` para "${query.trim()}"`:''}. Prueba a cambiar la versión o el loader del buscador.`}
           </div>
         ) : (
           <div className="space-y-2">
+            {!query.trim() && items.length>0 && (
+              <div className="flex flex-wrap items-baseline gap-2 px-1">
+                <span className="text-sm font-black">⭐ Recomendados</span>
+                <span className="text-[11px] text-white/40">los más descargados {tab==='packs'?'de modpacks':'de mods'} para tu versión — escribe en el buscador para encontrar algo concreto</span>
+              </div>
+            )}
             {items.map(it=>(
               <div key={it.source+it.id} onClick={()=>openDetail(it)} className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] card-hover cursor-pointer">
                 {it.icon ? <img src={it.icon} alt="" className="w-12 h-12 rounded-xl bg-white/10 border border-white/10" onError={(e:any)=>{e.target.style.visibility='hidden'}}/> : <div className="w-12 h-12 rounded-xl bg-white/10 grid place-items-center">🧩</div>}
@@ -545,6 +599,11 @@ export default function Mods(){
                   <div className="font-bold leading-none truncate flex items-center gap-2">
                     {it.title}
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${it.source==='modrinth'?'bg-emerald-500/15 text-emerald-300':'bg-orange-500/15 text-orange-300'}`}>{it.source==='modrinth'?'MODRINTH':'CURSEFORGE'}</span>
+                    {(() => {
+                      const cats = (it.categories||[]).map((c:any)=>String(c).toLowerCase())
+                      const lv = ['fabric','neoforge','forge','quilt'].find(l=>cats.includes(l))
+                      return lv ? <span className="text-[10px] px-1.5 py-0.5 rounded-full font-black bg-white/10 border border-white/10 text-white/60 shrink-0">{lv.toUpperCase()}</span> : null
+                    })()}
                   </div>
                   <div className="text-[11px] text-white/45 mt-1 truncate">{it.author}{it.author?' • ':''}⬇ {fmtDL(it.downloads)}{it.updated?` • ${new Date(it.updated).toLocaleDateString()}`:''}</div>
                   <div className="text-xs text-white/60 mt-1 line-clamp-1 truncate">{it.description}</div>
@@ -568,7 +627,7 @@ export default function Mods(){
         <div className="space-y-4">
           <div className="glass rounded-2xl p-4 border border-white/10 card-hover">
             <h3 className="font-bold mb-3">Crear modpack desde mis mods actuales</h3>
-            <p className="text-xs text-white/50 mb-3">Se incluiran <b>{mods.length} mods</b> de <code className="bg-black/30 px-1 rounded">%APPDATA%\.minecraft\mods\</code></p>
+            <p className="text-xs text-white/50 mb-3">Se incluiran <b>{mods.length} mods</b> de <code className="bg-black/30 px-1 rounded">%APPDATA%\.minecraft\mods\</code>{modsInfo?.loader ? <> — loader analizado: <b className="text-violet-300">{String(modsInfo.loader).toUpperCase()}</b></> : ''}</p>
             <div className="flex gap-3">
               <input value={newPackName} onChange={e=>setNewPackName(e.target.value)} placeholder="Nombre del modpack (ej: 'PvP Pack')"
                 className="flex-1 bg-[#14141c] border border-white/10 rounded-xl px-4 py-3 outline-none"/>
@@ -579,11 +638,20 @@ export default function Mods(){
             <div className="glass rounded-2xl p-10 text-center text-white/45">No hay modpacks propios. Crea uno o instala packs desde el catalogo.</div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {packs.map(pack=>(
+              {packs.map(pack=>{
+                // loader: el del pack, o el analizado de los mods actuales (packs propios)
+                const lv = String(pack.loader || modsInfo?.loader || '').toLowerCase()
+                const lvLabel = lv==='fabric' ? 'FABRIC' : lv==='neoforge' ? 'NEOFORGE' : lv==='forge' ? 'FORGE' : ''
+                const lvCls = lv==='fabric' ? 'bg-violet-500/20 text-violet-300' : 'bg-amber-500/20 text-amber-300'
+                return (
                 <div key={pack.id} className="glass rounded-2xl p-4 border border-white/10 hover:bg-white/[0.06] card-hover">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-bold text-lg truncate">{pack.name}</h3>
-                    <button onClick={()=>deletePack(pack.id)} className="text-red-400 hover:text-red-300 p-1" title="Eliminar">🗑</button>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="font-bold text-lg truncate flex items-center gap-2 min-w-0">
+                      <span className="truncate">{pack.name}</span>
+                      {lvLabel && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black shrink-0 ${lvCls}`}>{lvLabel}</span>}
+                      {pack.kind==='zip' && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-black shrink-0 bg-cyan-500/15 text-cyan-300">IMPORTADO</span>}
+                    </h3>
+                    <button onClick={()=>deletePack(pack.id)} className="text-red-400 hover:text-red-300 p-1 shrink-0" title="Eliminar">🗑</button>
                   </div>
                   <div className="text-xs text-white/50 mb-3">
                     {(pack.installedAt||pack.created) ? new Date(pack.installedAt||pack.created).toLocaleDateString() : '—'}
@@ -597,7 +665,7 @@ export default function Mods(){
                     <button onClick={()=>applyPack(pack.id)} className="w-full neon-gradient text-white font-bold py-2 rounded-xl">⚡ Aplicar</button>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
           <div className="glass rounded-xl p-3 text-xs text-white/50 border border-white/10">

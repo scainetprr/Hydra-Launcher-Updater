@@ -49,7 +49,13 @@ contextBridge.exposeInMainWorld('api', {
   getPendingCrashes: () => ipcRenderer.invoke('get-pending-crashes'),
   dismissCrashes: () => ipcRenderer.invoke('dismiss-crashes'),
   readCrash: (file: string) => ipcRenderer.invoke('read-crash', file),
+  explainCrash: (file: string) => ipcRenderer.invoke('explain-crash', file),
   shellOpenPath: (p: string) => ipcRenderer.invoke('shell-open-path', p),
+  // modales in-app (errores/crashes sin dialogos nativos que roban el foco)
+  onHydraModal: (cb: (m:any)=>void) => ipcRenderer.on('hydra-modal', (_e, v)=>cb(v)),
+  replyHydraModal: (id: number, response: number) => ipcRenderer.invoke('hydra-modal-reply', id, response),
+  // importar modpack desde un archivo local (.mrpack / CurseForge / zip de mods)
+  importModpack: (opts:any) => ipcRenderer.invoke('import-modpack', opts),
   onSessionStart: (cb: (info:any)=>void) => ipcRenderer.on('session-start', (_e, v)=>cb(v)),
   onSessionEnd: (cb: (ok:boolean)=>void) => ipcRenderer.on('session-end', (_e, v)=>cb(v)),  // news / comunidad (repo publico, curado por el owner)
   getNews: () => ipcRenderer.invoke('get-news'),

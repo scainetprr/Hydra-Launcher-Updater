@@ -120,6 +120,18 @@
 
 @media (prefers-reduced-motion: reduce) { .animated-bg { animation: none; } }
 
+/* MODO LIGERO (Ajustes → Modo ligero): para PCs modestas / graficos integrados
+   viejos. Quita backdrop-blur, los blobs desenfocados (los mas caros en GPU
+   integrada) y las animaciones continuas. */
+body.low-fx .glass-strong { backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.low-fx .fx-blob { filter: none !important; opacity: .10; }
+body.low-fx .bg-hero-breathing { animation: none; background-position: 50% 50%; }
+body.low-fx #heroStars { display: none; }
+body.low-fx .animated-bg { animation: none !important; }
+body.low-fx .nav-btn:hover::after { animation: none; }
+body.low-fx .card-hover:hover { transform: none; box-shadow: none; }
+body.low-fx .page-enter, body.low-fx .drop-in, body.low-fx .fade-up { animation: none; }
+
 /* Sidebar glassmorphism */
 .sidebar-glass {
   background: rgba(20, 20, 30, 0.85);

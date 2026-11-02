@@ -82,7 +82,7 @@ export default function Servers(){
                 </div>
                 <span className={`text-[11px] px-2 py-1 rounded-full border font-bold ${p?.online ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30':'bg-white/10 text-white/50 border-white/10'}`}>{p?.online ? '● Online':'○ Offline'}</span>
                 {canEdit && (
-                  <button onClick={()=>{ if(window.confirm(`¿Eliminar el servidor "${s.name}"?`)) remove(s.id) }}
+                  <button onClick={async ()=>{ if(await window.confirm(`¿Eliminar el servidor "${s.name}"?`)) remove(s.id) }}
                     title="Eliminar servidor" className="shrink-0 text-white/40 hover:text-red-400 rounded-lg border border-white/10 px-2 py-1 text-xs">✕</button>
                 )}
               </div>
