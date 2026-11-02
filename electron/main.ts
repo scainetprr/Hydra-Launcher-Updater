@@ -1735,7 +1735,7 @@ ipcMain.handle('ping-full', (_e, ip: string, port: number) => new Promise(res =>
 // API key compartida por defecto: todos los usuarios pueden usar CurseForge sin
 // configurar nada (la key solo da acceso a la API publica, NO a ninguna cuenta).
 // Cada usuario puede sobreescribirla con la suya propia desde Mods → 🔑 API key.
-const CF_SHARED_KEY = '$2a$10$.RnFK65J2B5SkalxHkQDe.lW3uEeUG4i5R1IMVSCZAfz7VYB/GF..'
+const CF_SHARED_KEY = '' // clave por defecto dejada vacía; el usuario debe ingresarla en la UI
 async function getCurseForgeKey(): Promise<string> {
   const custom = readConfigFile()?.curseforgeKey || ''
   return custom || CF_SHARED_KEY
@@ -1761,7 +1761,7 @@ ipcMain.handle('browse-content', async (_e, opts: any) => {
       }
       if (query) params.searchFilter = query
       if (gameVersion) params.gameVersion = gameVersion
-      if (loader && loader !== 'vanilla' && isMainType) params.modLoaderType = CF_LOADER[loader] || 0
+      if (loader && loader !== 'vanilla' && isMainType && type !== 'modpack') params.modLoaderType = CF_LOADER[loader] || 0
       const { data } = await axios.get('https://api.curseforge.com/v1/mods/search', { params, headers, timeout: 15000 })
       return {
         ok: true,
